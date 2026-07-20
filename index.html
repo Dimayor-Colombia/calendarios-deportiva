@@ -6,129 +6,149 @@
 <title>DIMAYOR · Board de Partidos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg-0:#05070d;
-    --line:rgba(255,255,255,0.09);
-    --text-hi:#f5f7ff;
-    --text-lo:#8a92ad;
-    --yellow:#f3cc23;
-    --card-bg:rgba(255,255,255,0.035);
-    --s:1; /* factor de escala de cada columna, lo ajusta el JS si hace falta */
+    --bg:#f0f4f8;
+    --card:#ffffff;
+    --text:#0f172a;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --primary:#004c99;
+    --primary-light:#0063cc;
+    --primary-dark:#003578;
+    --success:#059669;
+    --warning:#d97706;
+    --danger:#dc2626;
+    --soft-blue:#e6f0fa;
+    --soft-green:#e3f5ec;
+    --soft-orange:#fdf1e2;
+    --soft-red:#fde8e8;
+    --radius:14px;
+    --radius-sm:8px;
+    --shadow-sm:0 1px 2px rgba(15,23,42,.06);
+    --shadow:0 4px 14px rgba(15,23,42,.08);
+    --shadow-lg:0 14px 34px rgba(15,23,42,.14);
+    --ease:cubic-bezier(.16,1,.3,1);
+    --s:1; /* factor de escala por columna */
   }
   *{box-sizing:border-box;}
   html,body{
     height:100%; margin:0; padding:0;
-    overflow:hidden; /* nunca debe aparecer scroll: es para SmartTV */
-    background:
-      radial-gradient(1200px 700px at 10% -15%, rgba(6,42,99,0.55), transparent 60%),
-      radial-gradient(900px 600px at 100% 0%, rgba(243,204,35,0.06), transparent 55%),
-      var(--bg-0);
-    color:var(--text-hi);
-    font-family:'Barlow', sans-serif;
+    overflow:hidden; /* board de una sola pantalla, sin scroll, para SmartTV */
+    background:var(--bg);
+    color:var(--text);
+    font-family:'DM Sans', sans-serif;
   }
-  h1,.dayName,.kickoff{font-family:'Barlow Condensed', sans-serif;}
-
   .board{height:100vh; height:100dvh; display:flex; flex-direction:column;}
 
-  /* ---------- Header ---------- */
+  /* ---------- Topbar (mismo lenguaje que los paneles DIMAYOR) ---------- */
   header{
     flex:0 0 auto;
+    background:linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 60%, var(--primary-light) 100%);
+    color:#fff;
     display:flex; align-items:center; justify-content:space-between;
-    padding:10px 22px; border-bottom:1px solid var(--line);
+    padding:10px 22px;
+    box-shadow:var(--shadow);
   }
-  .brand{display:flex; align-items:center; gap:10px;}
-  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--yellow);
-    box-shadow:0 0 10px var(--yellow); animation:pulse 1.6s infinite;}
-  .brand h1{font-size:20px; font-weight:700; letter-spacing:0.5px; margin:0; text-transform:uppercase;}
-  .brand h1 span{color:var(--yellow);}
-  .clock{font-size:13px; color:var(--text-lo); letter-spacing:0.5px; text-align:right;}
-  .clock b{color:var(--text-hi); font-variant-numeric:tabular-nums;}
+  .brand{display:flex; align-items:center; gap:14px;}
+  .brand img{height:26px;}
+  .brand .sep{width:1px; height:22px; background:rgba(255,255,255,0.3);}
+  .brand .titles{line-height:1.15;}
+  .brand .titles .t1{font-size:16px; font-weight:700; letter-spacing:.3px;}
+  .brand .titles .t2{font-size:11px; color:rgba(255,255,255,0.75);}
+  .clock{font-family:'DM Mono', monospace; font-size:13px; color:rgba(255,255,255,0.9); text-align:right;}
+  .clock b{font-weight:500; color:#fff;}
 
   /* ---------- Grid de 7 días ---------- */
   .grid{
     flex:1 1 auto; min-height:0;
     display:grid; grid-template-columns:repeat(7, 1fr);
-    gap:8px; padding:8px 10px;
+    gap:10px; padding:10px 12px;
   }
   .dayCol{
     min-height:0; display:flex; flex-direction:column;
-    background:var(--card-bg); border:1px solid var(--line); border-radius:12px;
-    overflow:hidden;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:var(--shadow-sm); overflow:hidden;
+    animation:fadeUp .35s var(--ease) both;
   }
   .dayCol.today{
-    border-color:rgba(243,204,35,0.6);
-    box-shadow:0 0 0 1px rgba(243,204,35,0.15) inset, 0 0 24px rgba(243,204,35,0.08);
-    background:linear-gradient(180deg, rgba(243,204,35,0.08), rgba(255,255,255,0.03));
+    border-color:var(--primary-light);
+    box-shadow:var(--shadow), 0 0 0 1px rgba(0,99,204,0.25) inset;
   }
   .dayHead{
     flex:0 0 auto; text-align:center; padding:7px 4px 6px;
-    border-bottom:1px solid var(--line);
+    border-bottom:1px solid var(--line); background:var(--soft-blue);
   }
-  .dayHead .wd{font-size:15px; text-transform:uppercase; letter-spacing:1px; font-weight:600;}
-  .dayCol.today .dayHead .wd{color:var(--yellow);}
-  .dayHead .dt{font-size:10px; color:var(--text-lo);}
+  .dayCol.today .dayHead{background:var(--primary); }
+  .dayHead .wd{font-size:14px; text-transform:uppercase; letter-spacing:.6px; font-weight:600; color:var(--primary-dark);}
+  .dayCol.today .dayHead .wd{color:#fff;}
+  .dayHead .dt{font-family:'DM Mono', monospace; font-size:10px; color:var(--muted);}
+  .dayCol.today .dayHead .dt{color:rgba(255,255,255,0.85);}
 
   .matches{
     flex:1 1 auto; min-height:0; overflow:hidden;
-    display:flex; flex-direction:column; gap:calc(5px * var(--s));
-    padding:calc(6px * var(--s)) calc(6px * var(--s)) calc(8px * var(--s));
+    display:flex; flex-direction:column; gap:calc(6px * var(--s));
+    padding:calc(7px * var(--s)) calc(7px * var(--s)) calc(9px * var(--s));
   }
 
-  .emptyState{
-    margin:auto; color:var(--text-lo); font-size:12px; text-align:center; padding:10px;
-  }
+  .emptyState{ margin:auto; color:var(--muted); font-size:12px; text-align:center; padding:10px; }
 
   /* ---------- Tarjeta de partido ---------- */
   .match{
-    position:relative; background:rgba(255,255,255,0.03);
-    border:1px solid var(--line); border-left:calc(3px * var(--s)) solid var(--comp-color, #444);
-    border-radius:calc(8px * var(--s));
+    position:relative; background:var(--card);
+    border:1px solid var(--line); border-left:calc(3px * var(--s)) solid var(--comp-color, var(--primary));
+    border-radius:var(--radius-sm);
     padding:calc(6px * var(--s)) calc(8px * var(--s));
+    box-shadow:var(--shadow-sm);
   }
-  .match.finalizado{opacity:.45;}
+  .match.finalizado{opacity:.55;}
   .match .comp{
-    font-size:calc(8.5px * var(--s)); letter-spacing:.5px; text-transform:uppercase;
-    color:var(--text-lo); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    display:flex; align-items:center; gap:4px; margin-bottom:2px;
+    font-size:calc(8.5px * var(--s)); letter-spacing:.4px; text-transform:uppercase;
+    color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    display:flex; align-items:center; gap:4px; margin-bottom:2px; font-weight:500;
   }
   .match .comp img{width:calc(12px * var(--s)); height:calc(12px * var(--s)); object-fit:contain; border-radius:3px; flex:0 0 auto;}
   .match .title{
-    font-size:calc(12.5px * var(--s)); font-weight:600; line-height:1.2;
+    font-size:calc(12.5px * var(--s)); font-weight:600; line-height:1.2; color:var(--text);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .match .row2{display:flex; align-items:center; justify-content:space-between; margin-top:calc(3px * var(--s));}
-  .kickoff{font-size:calc(13px * var(--s)); font-weight:700; font-variant-numeric:tabular-nums; color:var(--text-hi);}
+  .kickoff{
+    font-family:'DM Mono', monospace; font-size:calc(12.5px * var(--s)); font-weight:500;
+    color:var(--primary);
+  }
 
   .badge{
     display:inline-flex; align-items:center; gap:4px;
-    font-size:calc(9px * var(--s)); font-weight:700; letter-spacing:.5px;
+    font-size:calc(9px * var(--s)); font-weight:600; letter-spacing:.4px;
     padding:calc(2px * var(--s)) calc(6px * var(--s)); border-radius:20px; text-transform:uppercase;
   }
-  .badge.live{background:rgba(230,72,60,0.18); color:#ff6a5c;}
-  .badge.live .dot{width:5px;height:5px;border-radius:50%;background:#ff6a5c; animation:pulse 1s infinite;}
-  .badge.done{background:rgba(255,255,255,0.06); color:var(--text-lo);}
+  .badge.live{background:var(--soft-red); color:var(--danger);}
+  .badge.live .dot{width:5px;height:5px;border-radius:50%;background:var(--danger); animation:pulse 1s infinite;}
+  .badge.done{background:#eef1f5; color:var(--muted);}
 
-  .progress{height:2px; border-radius:3px; background:rgba(255,255,255,0.08); margin-top:calc(4px * var(--s)); overflow:hidden;}
-  .progress i{display:block; height:100%; background:#ff6a5c;}
+  .progress{height:2px; border-radius:3px; background:var(--soft-red); margin-top:calc(4px * var(--s)); overflow:hidden;}
+  .progress i{display:block; height:100%; background:var(--danger);}
 
   .moreChip{
-    text-align:center; font-size:11px; color:var(--text-lo);
-    padding:4px; border:1px dashed var(--line); border-radius:8px; flex:0 0 auto;
+    text-align:center; font-size:11px; color:var(--muted);
+    padding:4px; border:1px dashed var(--line); border-radius:var(--radius-sm); flex:0 0 auto;
   }
 
   footer{
     flex:0 0 auto; display:flex; justify-content:space-between; align-items:center;
-    padding:4px 18px; color:var(--text-lo); font-size:11px; border-top:1px solid var(--line);
+    padding:5px 18px; color:var(--muted); font-size:11px; border-top:1px solid var(--line);
+    background:var(--card);
   }
 
   @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.35;}}
+  @keyframes fadeUp{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
 
   @media (max-width:900px){
     .grid{grid-template-columns:repeat(7,1fr); gap:4px; padding:4px;}
-    .dayHead .wd{font-size:11px;}
-    .match .title{font-size:calc(10px * var(--s));}
+    .dayHead .wd{font-size:10px;}
+    .brand .titles .t2{display:none;}
   }
 </style>
 </head>
@@ -136,8 +156,12 @@
 <div class="board">
   <header>
     <div class="brand">
-      <span class="dot"></span>
-      <h1>DIMAYOR <span>· BOARD</span></h1>
+      <img src="https://lh3.googleusercontent.com/d/1l4mdgdoIJxuPBRY8VDhhC-AJQW6vgdWr" alt="DIMAYOR">
+      <div class="sep"></div>
+      <div class="titles">
+        <div class="t1">Board de Partidos</div>
+        <div class="t2">Calendarios por competencia</div>
+      </div>
     </div>
     <div class="clock">Hoy <b id="clockDate">--</b> · <b id="clockTime">--:--:--</b></div>
   </header>
@@ -162,7 +186,7 @@ const CONFIG = {
   TICK_MS: 20 * 1000,
   MATCH_DURATION_MIN: 130,
   RELOAD_AT_MIDNIGHT: true,
-  MIN_SCALE: 0.55   // qué tanto se puede encoger una columna antes de empezar a recortar partidos
+  MIN_SCALE: 0.55
 };
 
 const CALENDARS = [
@@ -171,7 +195,7 @@ const CALENDARS = [
   { id: 'c_f4e132b3db024af62da58634ae149e2baabbe282f113c0f7d9ddea1ffe67d42f@group.calendar.google.com', label: 'Copa BetPlay Dimayor', color: '#3bad4c', logo: 'https://lh3.googleusercontent.com/d/1TELaujxqcd_Q_I3HwUxriPuUuwOx2Wrl' },
   { id: 'c_d95f7411f89d37a29d9135d9b963cb157e2c0e8ca5971cfe34320415fa6d9254@group.calendar.google.com', label: 'Superliga BetPlay Dimayor', color: '#062a63', logo: 'https://lh3.googleusercontent.com/d/1UJxk_10wBGXLNs5_gaVFI6xmUkT47uYq' },
   { id: 'c_4317288379f78b336a1509f4f6f678aad84d2b08c72797d268346ea2122beb79@group.calendar.google.com', label: 'Liga Femenina BetPlay Dimayor', color: '#b51a65', logo: 'https://lh3.googleusercontent.com/d/1GRGoELSTVM2sDydzsswzi6XvjCDxK84y' },
-  { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#9aa0ad', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU' },
+  { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#64748b', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU' },
   { id: 'c_b9881758c97c62967ca1e1638d560af12815ed0262b6bf7d7afc2d910b7cf03a@group.calendar.google.com', label: 'CONMEBOL Libertadores', color: '#c9a227', logo: 'https://lh3.googleusercontent.com/d/1iRkeR307HOxDvVcV8u_IKMkZ3_b0GAye' },
   { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#c23b3b', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE' },
   { id: '4de747g9v5rqo0ohmj87j4sf1fg9m2c8@import.calendar.google.com', label: 'Copa Mundial de la FIFA 2026', color: '#2fb8a6', logo: 'https://lh3.googleusercontent.com/d/1Td-x8UWchJUcFPqIPhxfYJlWzpvF6t9u' }
@@ -319,8 +343,6 @@ function renderGrid(days){
   days.forEach(d => fillColumn(d.key));
 }
 
-// Llena una columna y, si no cabe en la pantalla, la encoge y si aún así
-// no cabe, recorta primero los partidos ya finalizados (nunca los que están en vivo).
 function fillColumn(key){
   const col = document.getElementById(`matches-${key}`);
   const all = eventsForDay(key);
@@ -349,7 +371,6 @@ function fillColumn(key){
     if(scale > CONFIG.MIN_SCALE){
       scale = Math.max(CONFIG.MIN_SCALE, scale - 0.05);
     } else if(visible.length > 1){
-      // recorta desde el final (los finalizados quedan al final por el orden ya aplicado)
       visible = visible.slice(0, -1);
     } else {
       break;
