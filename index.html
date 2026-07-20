@@ -142,6 +142,9 @@
     background:var(--card);
   }
 
+  .onlinePill{display:flex; align-items:center; gap:6px; color:var(--success); font-weight:500;}
+  .liveDot{width:8px; height:8px; border-radius:50%; background:var(--success); box-shadow:0 0 6px rgba(5,150,105,.6); animation:pulse 1.6s infinite;}
+
   @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.35;}}
   @keyframes fadeUp{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
 
@@ -170,7 +173,7 @@
 
   <footer>
     <span id="statusLine">Iniciando…</span>
-    <span id="refreshHint">Se actualiza solo</span>
+    <span class="onlinePill"><span class="liveDot"></span>En línea</span>
   </footer>
 </div>
 
@@ -215,7 +218,7 @@ function weekdayIndexBogota(d){
   return WD_MAP[short];
 }
 function fmtTime(d){
-  return new Date(d).toLocaleTimeString('es-CO', { timeZone: CONFIG.TIMEZONE, hour:'2-digit', minute:'2-digit', hour12:false });
+  return new Date(d).toLocaleTimeString('en-US', { timeZone: CONFIG.TIMEZONE, hour:'numeric', minute:'2-digit', hour12:true });
 }
 function fmtDayShort(d){
   const dt = new Date(d);
@@ -382,13 +385,16 @@ function fillColumn(key){
 function renderClock(){
   const now = bogotaNow();
   document.getElementById('clockTime').textContent =
-    now.toLocaleTimeString('es-CO', { timeZone: CONFIG.TIMEZONE, hour12:false });
+    now.toLocaleTimeString('en-US', { timeZone: CONFIG.TIMEZONE, hour:'numeric', minute:'2-digit', hour12:true });
   document.getElementById('clockDate').textContent =
     `${WD_NAMES[weekdayIndexBogota(now)]} ${fmtDayShort(now)}`;
 }
 
 function renderAll(){
-  renderGrid(buildDayList());
+  const days = buildDayList();
+  renderGrid(days);
+  const keys = new Set(days.map(d => d.key));
+  return CACHE.events.filter(e => keys.has(dateKeyBogota(e.startISO))).length;
 }
 
 /* =========================================================
@@ -401,11 +407,11 @@ async function loadEvents(){
   try{
     const { events, errors } = await fetchAllEvents();
     CACHE.events = events;
-    renderAll();
-    const stamp = bogotaNow().toLocaleTimeString('es-CO', { timeZone: CONFIG.TIMEZONE, hour12:false });
+    const visibleCount = renderAll();
+    const stamp = bogotaNow().toLocaleTimeString('en-US', { timeZone: CONFIG.TIMEZONE, hour:'numeric', minute:'2-digit', hour12:true });
     statusLine.textContent = errors.length
       ? `Actualizado ${stamp} · ${errors.length} calendario(s) con error`
-      : `Actualizado ${stamp} · ${events.length} partidos`;
+      : `Actualizado ${stamp} · ${visibleCount} partidos`;
     if(errors.length) console.warn('Errores de calendario:', errors);
   }catch(err){
     console.error(err);
