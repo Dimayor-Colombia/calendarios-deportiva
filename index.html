@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>DIMAYOR · Board de Partidos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -10,196 +10,159 @@
 <style>
   :root{
     --bg-0:#05070d;
-    --bg-1:#0a1224;
-    --bg-2:#0f1c3a;
-    --line:rgba(255,255,255,0.08);
+    --line:rgba(255,255,255,0.09);
     --text-hi:#f5f7ff;
     --text-lo:#8a92ad;
     --yellow:#f3cc23;
-    --green:#3bad4c;
-    --red:#e6483c;
     --card-bg:rgba(255,255,255,0.035);
+    --s:1; /* factor de escala de cada columna, lo ajusta el JS si hace falta */
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;height:100%;}
-  body{
+  html,body{
+    height:100%; margin:0; padding:0;
+    overflow:hidden; /* nunca debe aparecer scroll: es para SmartTV */
     background:
-      radial-gradient(1200px 700px at 15% -10%, rgba(6,42,99,0.55), transparent 60%),
+      radial-gradient(1200px 700px at 10% -15%, rgba(6,42,99,0.55), transparent 60%),
       radial-gradient(900px 600px at 100% 0%, rgba(243,204,35,0.06), transparent 55%),
       var(--bg-0);
     color:var(--text-hi);
     font-family:'Barlow', sans-serif;
-    min-height:100%;
-    padding-bottom:60px;
   }
-  h1,h2,h3,.num,.matchTime,.dayName{font-family:'Barlow Condensed', sans-serif;}
+  h1,.dayName,.kickoff{font-family:'Barlow Condensed', sans-serif;}
 
-  /* ---------- Header / ticker ---------- */
+  .board{height:100vh; height:100dvh; display:flex; flex-direction:column;}
+
+  /* ---------- Header ---------- */
   header{
-    position:sticky; top:0; z-index:30;
-    background:linear-gradient(180deg, rgba(5,7,13,0.98), rgba(5,7,13,0.9));
-    backdrop-filter:blur(6px);
+    flex:0 0 auto;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 22px; border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--yellow);
+    box-shadow:0 0 10px var(--yellow); animation:pulse 1.6s infinite;}
+  .brand h1{font-size:20px; font-weight:700; letter-spacing:0.5px; margin:0; text-transform:uppercase;}
+  .brand h1 span{color:var(--yellow);}
+  .clock{font-size:13px; color:var(--text-lo); letter-spacing:0.5px; text-align:right;}
+  .clock b{color:var(--text-hi); font-variant-numeric:tabular-nums;}
+
+  /* ---------- Grid de 7 días ---------- */
+  .grid{
+    flex:1 1 auto; min-height:0;
+    display:grid; grid-template-columns:repeat(7, 1fr);
+    gap:8px; padding:8px 10px;
+  }
+  .dayCol{
+    min-height:0; display:flex; flex-direction:column;
+    background:var(--card-bg); border:1px solid var(--line); border-radius:12px;
+    overflow:hidden;
+  }
+  .dayCol.today{
+    border-color:rgba(243,204,35,0.6);
+    box-shadow:0 0 0 1px rgba(243,204,35,0.15) inset, 0 0 24px rgba(243,204,35,0.08);
+    background:linear-gradient(180deg, rgba(243,204,35,0.08), rgba(255,255,255,0.03));
+  }
+  .dayHead{
+    flex:0 0 auto; text-align:center; padding:7px 4px 6px;
     border-bottom:1px solid var(--line);
   }
-  .headerTop{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:14px 26px 6px;
-  }
-  .brand{display:flex; align-items:center; gap:12px;}
-  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--yellow);
-    box-shadow:0 0 12px var(--yellow); animation:pulse 1.6s infinite;}
-  .brand h1{font-size:22px; font-weight:700; letter-spacing:0.5px; margin:0; text-transform:uppercase;}
-  .brand h1 span{color:var(--yellow);}
-  .clock{font-size:14px; color:var(--text-lo); letter-spacing:0.5px; text-align:right;}
-  .clock b{color:var(--text-hi); font-variant-numeric: tabular-nums;}
+  .dayHead .wd{font-size:15px; text-transform:uppercase; letter-spacing:1px; font-weight:600;}
+  .dayCol.today .dayHead .wd{color:var(--yellow);}
+  .dayHead .dt{font-size:10px; color:var(--text-lo);}
 
-  .ticker{
-    display:flex; gap:6px; padding:10px 20px 16px; overflow-x:auto;
-  }
-  .tickerDay{
-    flex:1 1 0; min-width:96px;
-    text-align:center; padding:8px 6px 9px;
-    border-radius:10px; border:1px solid transparent;
-    color:var(--text-lo); cursor:default;
-    transition:all .25s ease;
-  }
-  .tickerDay .wd{font-family:'Barlow Condensed'; font-weight:600; font-size:13px; letter-spacing:1.5px; text-transform:uppercase;}
-  .tickerDay .dt{font-size:11px; opacity:.75;}
-  .tickerDay.today{
-    background:linear-gradient(180deg, rgba(243,204,35,0.16), rgba(243,204,35,0.04));
-    border-color:rgba(243,204,35,0.55);
-    color:var(--yellow);
-  }
-  .tickerDay .cnt{display:block; font-size:11px; margin-top:2px; color:inherit; opacity:.8;}
-
-  /* ---------- Layout ---------- */
-  main{max-width:1180px; margin:0 auto; padding:22px 20px 0;}
-
-  .heroLabel{
-    display:flex; align-items:baseline; gap:10px; margin:4px 0 14px;
-  }
-  .heroLabel .eyebrow{font-size:12px; letter-spacing:3px; color:var(--yellow); text-transform:uppercase; font-weight:600;}
-  .heroLabel h2{font-size:30px; margin:0; text-transform:uppercase; letter-spacing:0.5px;}
-  .heroLabel .sub{color:var(--text-lo); font-size:14px;}
-
-  .heroGrid{
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(300px,1fr));
-    gap:14px; margin-bottom:34px;
+  .matches{
+    flex:1 1 auto; min-height:0; overflow:hidden;
+    display:flex; flex-direction:column; gap:calc(5px * var(--s));
+    padding:calc(6px * var(--s)) calc(6px * var(--s)) calc(8px * var(--s));
   }
 
   .emptyState{
-    border:1px dashed var(--line); border-radius:14px; padding:34px;
-    text-align:center; color:var(--text-lo); font-size:15px;
+    margin:auto; color:var(--text-lo); font-size:12px; text-align:center; padding:10px;
   }
 
-  .weekSection{margin-bottom:10px;}
-  .weekDayRow{
-    border-top:1px solid var(--line); padding:14px 0;
-    display:grid; grid-template-columns:140px 1fr; gap:18px;
-  }
-  .weekDayRow .dayName{font-size:20px; text-transform:uppercase; color:var(--text-hi); letter-spacing:0.5px;}
-  .weekDayRow .dayName small{display:block; font-family:'Barlow'; font-size:12px; color:var(--text-lo); font-weight:400;}
-  .weekMatches{display:flex; flex-direction:column; gap:8px;}
-
-  /* ---------- Match card ---------- */
+  /* ---------- Tarjeta de partido ---------- */
   .match{
-    position:relative; background:var(--card-bg);
-    border:1px solid var(--line); border-radius:12px;
-    padding:12px 14px; display:flex; align-items:center; gap:12px;
-    border-left:4px solid var(--comp-color, #444);
-    transition:transform .15s ease, background .2s ease;
+    position:relative; background:rgba(255,255,255,0.03);
+    border:1px solid var(--line); border-left:calc(3px * var(--s)) solid var(--comp-color, #444);
+    border-radius:calc(8px * var(--s));
+    padding:calc(6px * var(--s)) calc(8px * var(--s));
   }
-  .heroGrid .match{padding:16px;}
-  .match.finalizado{opacity:.5;}
-  .match .logo{width:26px; height:26px; object-fit:contain; flex:0 0 auto; border-radius:4px;}
-  .match .info{flex:1; min-width:0;}
-  .match .comp{font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--text-lo); margin-bottom:2px;}
-  .match .title{font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .heroGrid .match .title{font-size:17px;}
-  .match .status{flex:0 0 auto; text-align:right; font-family:'Barlow Condensed'; min-width:78px;}
-  .match .kickoff{font-size:20px; font-weight:700; font-variant-numeric:tabular-nums;}
-  .weekDayRow .match .kickoff{font-size:16px;}
+  .match.finalizado{opacity:.45;}
+  .match .comp{
+    font-size:calc(8.5px * var(--s)); letter-spacing:.5px; text-transform:uppercase;
+    color:var(--text-lo); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    display:flex; align-items:center; gap:4px; margin-bottom:2px;
+  }
+  .match .comp img{width:calc(12px * var(--s)); height:calc(12px * var(--s)); object-fit:contain; border-radius:3px; flex:0 0 auto;}
+  .match .title{
+    font-size:calc(12.5px * var(--s)); font-weight:600; line-height:1.2;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .match .row2{display:flex; align-items:center; justify-content:space-between; margin-top:calc(3px * var(--s));}
+  .kickoff{font-size:calc(13px * var(--s)); font-weight:700; font-variant-numeric:tabular-nums; color:var(--text-hi);}
 
   .badge{
-    display:inline-flex; align-items:center; gap:5px;
-    font-size:11px; font-weight:700; letter-spacing:1px;
-    padding:3px 8px; border-radius:20px; text-transform:uppercase;
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:calc(9px * var(--s)); font-weight:700; letter-spacing:.5px;
+    padding:calc(2px * var(--s)) calc(6px * var(--s)); border-radius:20px; text-transform:uppercase;
   }
-  .badge.live{background:rgba(230,72,60,0.16); color:#ff6a5c;}
-  .badge.live .dot{width:6px;height:6px;border-radius:50%;background:#ff6a5c; animation:pulse 1s infinite;}
+  .badge.live{background:rgba(230,72,60,0.18); color:#ff6a5c;}
+  .badge.live .dot{width:5px;height:5px;border-radius:50%;background:#ff6a5c; animation:pulse 1s infinite;}
   .badge.done{background:rgba(255,255,255,0.06); color:var(--text-lo);}
 
-  .progress{height:3px; border-radius:3px; background:rgba(255,255,255,0.08); margin-top:8px; overflow:hidden;}
+  .progress{height:2px; border-radius:3px; background:rgba(255,255,255,0.08); margin-top:calc(4px * var(--s)); overflow:hidden;}
   .progress i{display:block; height:100%; background:#ff6a5c;}
 
-  footer{
-    max-width:1180px; margin:30px auto 0; padding:14px 20px 30px;
-    display:flex; justify-content:space-between; color:var(--text-lo); font-size:12px;
-    border-top:1px solid var(--line);
+  .moreChip{
+    text-align:center; font-size:11px; color:var(--text-lo);
+    padding:4px; border:1px dashed var(--line); border-radius:8px; flex:0 0 auto;
   }
-  footer button{
-    background:transparent; border:1px solid var(--line); color:var(--text-lo);
-    padding:6px 12px; border-radius:8px; font-family:inherit; cursor:pointer;
-  }
-  footer button:hover{color:var(--text-hi); border-color:var(--text-hi);}
 
-  @keyframes pulse{
-    0%,100%{opacity:1;} 50%{opacity:.35;}
+  footer{
+    flex:0 0 auto; display:flex; justify-content:space-between; align-items:center;
+    padding:4px 18px; color:var(--text-lo); font-size:11px; border-top:1px solid var(--line);
   }
-  @media (max-width:640px){
-    .weekDayRow{grid-template-columns:1fr; gap:6px;}
-    .ticker{gap:4px;}
-    .tickerDay{min-width:60px; padding:6px 3px;}
-    .tickerDay .wd{font-size:11px;}
+
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.35;}}
+
+  @media (max-width:900px){
+    .grid{grid-template-columns:repeat(7,1fr); gap:4px; padding:4px;}
+    .dayHead .wd{font-size:11px;}
+    .match .title{font-size:calc(10px * var(--s));}
   }
 </style>
 </head>
 <body>
-
-<header>
-  <div class="headerTop">
+<div class="board">
+  <header>
     <div class="brand">
       <span class="dot"></span>
       <h1>DIMAYOR <span>· BOARD</span></h1>
     </div>
-    <div class="clock">Hoy es <b id="clockDate">--</b> · <b id="clockTime">--:--:--</b></div>
-  </div>
-  <div class="ticker" id="ticker"></div>
-</header>
+    <div class="clock">Hoy <b id="clockDate">--</b> · <b id="clockTime">--:--:--</b></div>
+  </header>
 
-<main>
-  <div class="heroLabel">
-    <span class="eyebrow">Hoy</span>
-    <h2 id="heroTitle">Partidos del día</h2>
-    <span class="sub" id="heroSub"></span>
-  </div>
-  <div class="heroGrid" id="heroGrid">
-    <div class="emptyState">Cargando calendarios…</div>
-  </div>
+  <div class="grid" id="grid"></div>
 
-  <div class="weekSection" id="weekSection"></div>
-</main>
-
-<footer>
-  <span id="statusLine">Iniciando…</span>
-  <button id="refreshBtn">Actualizar ahora</button>
-</footer>
+  <footer>
+    <span id="statusLine">Iniciando…</span>
+    <span id="refreshHint">Se actualiza solo</span>
+  </footer>
+</div>
 
 <script>
 /* =========================================================
    CONFIGURACIÓN
    ========================================================= */
 const CONFIG = {
-  // 1) Crea una API key en https://console.cloud.google.com/ (habilita "Google Calendar API")
-  // 2) Cada calendario de CALENDARS debe estar compartido como
-  //    "Disponible públicamente" (ver detalles de eventos) en su configuración de Google Calendar.
   API_KEY: 'AIzaSyC2oQ0Y7RYZX_lgkgPIchochLltCnN78nc',
   TIMEZONE: 'America/Bogota',
-  DAYS_AHEAD: 7,                 // cuántos días (incl. hoy) se muestran
-  REFRESH_EVENTS_MS: 3 * 60 * 1000,   // cada cuánto se vuelve a consultar Google Calendar
-  TICK_MS: 20 * 1000,                 // cada cuánto se recalculan los estados (en vivo/finalizado)
-  MATCH_DURATION_MIN: 130,            // duración asumida si el evento no trae hora de fin real
-  RELOAD_AT_MIDNIGHT: true            // recarga completa la página al cambiar de día
+  DAYS_AHEAD: 7,
+  REFRESH_EVENTS_MS: 3 * 60 * 1000,
+  TICK_MS: 20 * 1000,
+  MATCH_DURATION_MIN: 130,
+  RELOAD_AT_MIDNIGHT: true,
+  MIN_SCALE: 0.55   // qué tanto se puede encoger una columna antes de empezar a recortar partidos
 };
 
 const CALENDARS = [
@@ -221,12 +184,8 @@ const WD_MAP = { Mon:0, Tue:1, Wed:2, Thu:3, Fri:4, Sat:5, Sun:6 };
 const WD_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
-function bogotaNow(){
-  return new Date(new Date().toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE }));
-}
-function dateKeyBogota(d){
-  return new Date(d).toLocaleDateString('en-CA', { timeZone: CONFIG.TIMEZONE }); // YYYY-MM-DD
-}
+function bogotaNow(){ return new Date(new Date().toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE })); }
+function dateKeyBogota(d){ return new Date(d).toLocaleDateString('en-CA', { timeZone: CONFIG.TIMEZONE }); }
 function weekdayIndexBogota(d){
   const short = new Date(d).toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE, weekday:'short' });
   return WD_MAP[short];
@@ -240,8 +199,6 @@ function fmtDayShort(d){
   const monthIdx = Number(dt.toLocaleString('en-US', { timeZone: CONFIG.TIMEZONE, month:'numeric' })) - 1;
   return `${day} ${MESES[monthIdx]}`;
 }
-
-// Construye los próximos DAYS_AHEAD días reales a partir de "hoy" (rotación natural del calendario)
 function buildDayList(){
   const now = bogotaNow();
   const days = [];
@@ -250,7 +207,6 @@ function buildDayList(){
     d.setDate(d.getDate()+i);
     days.push({
       key: dateKeyBogota(d),
-      wdIndex: weekdayIndexBogota(d),
       label: WD_NAMES[weekdayIndexBogota(d)],
       shortDate: fmtDayShort(d),
       isToday: i===0
@@ -260,7 +216,7 @@ function buildDayList(){
 }
 
 /* =========================================================
-   CARGA DE EVENTOS DESDE GOOGLE CALENDAR
+   CARGA DE EVENTOS
    ========================================================= */
 async function fetchCalendarEvents(cal, timeMinISO, timeMaxISO){
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`
@@ -286,18 +242,14 @@ async function fetchCalendarEvents(cal, timeMinISO, timeMaxISO){
       cal
     }));
 }
-
 async function fetchAllEvents(){
   const now = bogotaNow();
   const timeMin = new Date(now); timeMin.setHours(0,0,0,0);
   const timeMax = new Date(now); timeMax.setDate(timeMax.getDate()+CONFIG.DAYS_AHEAD); timeMax.setHours(23,59,59,999);
-
   const results = await Promise.allSettled(
     CALENDARS.map(cal => fetchCalendarEvents(cal, timeMin.toISOString(), timeMax.toISOString()))
   );
-
-  const events = [];
-  const errors = [];
+  const events = []; const errors = [];
   results.forEach((r, idx) => {
     if(r.status === 'fulfilled') events.push(...r.value);
     else errors.push(CALENDARS[idx].label + ': ' + r.reason.message);
@@ -317,83 +269,93 @@ function matchStatus(ev){
   if(now >= start && now < end) return { state:'en_vivo', start, end, pct: Math.min(100, ((now-start)/(end-start))*100) };
   return { state:'finalizado', start, end, pct:100 };
 }
+const STATE_ORDER = { en_vivo:0, programado:1, finalizado:2 };
 
 /* =========================================================
    RENDER
    ========================================================= */
 let CACHE = { events: [] };
 
-function renderTicker(days){
-  const el = document.getElementById('ticker');
-  el.innerHTML = days.map(d => {
-    const count = CACHE.events.filter(e => dateKeyBogota(e.startISO) === d.key).length;
-    return `<div class="tickerDay ${d.isToday ? 'today':''}">
-      <div class="wd">${d.label.slice(0,3)}</div>
-      <div class="dt">${d.shortDate}</div>
-      <span class="cnt">${count} partido${count===1?'':'s'}</span>
-    </div>`;
-  }).join('');
-}
-
-function matchCardHTML(ev, big){
+function matchCardHTML(ev){
   const st = matchStatus(ev);
   let statusHTML;
-  if(st.state === 'en_vivo'){
-    statusHTML = `<span class="badge live"><span class="dot"></span>En vivo</span>`;
-  } else if(st.state === 'finalizado'){
-    statusHTML = `<span class="badge done">Finalizado</span>`;
-  } else {
-    statusHTML = `<span class="kickoff">${ev.allDay ? '--:--' : fmtTime(ev.startISO)}</span>`;
-  }
+  if(st.state === 'en_vivo') statusHTML = `<span class="badge live"><span class="dot"></span>Vivo</span>`;
+  else if(st.state === 'finalizado') statusHTML = `<span class="badge done">Fin</span>`;
+  else statusHTML = `<span class="kickoff">${ev.allDay ? '--:--' : fmtTime(ev.startISO)}</span>`;
   const progressHTML = st.state === 'en_vivo'
     ? `<div class="progress"><i style="width:${st.pct.toFixed(0)}%"></i></div>` : '';
 
   return `<div class="match ${st.state === 'finalizado' ? 'finalizado':''}" style="--comp-color:${ev.cal.color}">
-    <img class="logo" src="${ev.cal.logo}" alt="" onerror="this.style.display='none'">
-    <div class="info">
-      <div class="comp">${ev.cal.label}</div>
-      <div class="title">${ev.title}</div>
-      ${progressHTML}
-    </div>
-    <div class="status">${statusHTML}</div>
+    <div class="comp"><img src="${ev.cal.logo}" alt="" onerror="this.style.display='none'">${ev.cal.label}</div>
+    <div class="title">${ev.title}</div>
+    <div class="row2">${statusHTML}</div>
+    ${progressHTML}
   </div>`;
 }
 
-function renderHero(todayKey, todayMeta){
-  const grid = document.getElementById('heroGrid');
-  document.getElementById('heroSub').textContent = `${todayMeta.label}, ${todayMeta.shortDate}`;
-
-  const todays = CACHE.events
-    .filter(e => dateKeyBogota(e.startISO) === todayKey)
+function eventsForDay(key){
+  return CACHE.events
+    .filter(e => dateKeyBogota(e.startISO) === key)
     .map(e => ({ e, st: matchStatus(e) }))
     .sort((a,b) => {
-      const order = { en_vivo:0, programado:1, finalizado:2 };
-      if(order[a.st.state] !== order[b.st.state]) return order[a.st.state]-order[b.st.state];
+      if(STATE_ORDER[a.st.state] !== STATE_ORDER[b.st.state]) return STATE_ORDER[a.st.state]-STATE_ORDER[b.st.state];
       return new Date(a.e.startISO) - new Date(b.e.startISO);
-    });
-
-  if(todays.length === 0){
-    grid.innerHTML = `<div class="emptyState">No hay partidos programados para hoy.</div>`;
-    return;
-  }
-  grid.innerHTML = todays.map(({e}) => matchCardHTML(e, true)).join('');
+    })
+    .map(x => x.e);
 }
 
-function renderWeek(days){
-  const el = document.getElementById('weekSection');
-  const rest = days.slice(1); // todos menos hoy
-  el.innerHTML = rest.map(d => {
-    const matches = CACHE.events
-      .filter(e => dateKeyBogota(e.startISO) === d.key)
-      .sort((a,b) => new Date(a.startISO) - new Date(b.startISO));
-    const body = matches.length
-      ? matches.map(e => matchCardHTML(e, false)).join('')
-      : `<div class="emptyState" style="padding:14px;">Sin partidos</div>`;
-    return `<div class="weekDayRow">
-      <div class="dayName">${d.label}<small>${d.shortDate}</small></div>
-      <div class="weekMatches">${body}</div>
-    </div>`;
-  }).join('');
+function renderGrid(days){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = days.map(d => `
+    <section class="dayCol ${d.isToday ? 'today':''}" data-key="${d.key}">
+      <div class="dayHead">
+        <div class="wd">${d.label}</div>
+        <div class="dt">${d.shortDate}</div>
+      </div>
+      <div class="matches" id="matches-${d.key}"></div>
+    </section>
+  `).join('');
+
+  days.forEach(d => fillColumn(d.key));
+}
+
+// Llena una columna y, si no cabe en la pantalla, la encoge y si aún así
+// no cabe, recorta primero los partidos ya finalizados (nunca los que están en vivo).
+function fillColumn(key){
+  const col = document.getElementById(`matches-${key}`);
+  const all = eventsForDay(key);
+
+  if(all.length === 0){
+    col.style.setProperty('--s', 1);
+    col.innerHTML = `<div class="emptyState">Sin partidos</div>`;
+    return;
+  }
+
+  let visible = all.slice();
+  let scale = 1;
+
+  const render = () => {
+    col.style.setProperty('--s', scale.toFixed(2));
+    const hiddenCount = all.length - visible.length;
+    col.innerHTML = visible.map(matchCardHTML).join('')
+      + (hiddenCount > 0 ? `<div class="moreChip">+${hiddenCount} más</div>` : '');
+  };
+
+  render();
+
+  let guard = 0;
+  while(col.scrollHeight > col.clientHeight && guard < 60){
+    guard++;
+    if(scale > CONFIG.MIN_SCALE){
+      scale = Math.max(CONFIG.MIN_SCALE, scale - 0.05);
+    } else if(visible.length > 1){
+      // recorta desde el final (los finalizados quedan al final por el orden ya aplicado)
+      visible = visible.slice(0, -1);
+    } else {
+      break;
+    }
+    render();
+  }
 }
 
 function renderClock(){
@@ -405,14 +367,11 @@ function renderClock(){
 }
 
 function renderAll(){
-  const days = buildDayList();
-  renderTicker(days);
-  renderHero(days[0].key, days[0]);
-  renderWeek(days);
+  renderGrid(buildDayList());
 }
 
 /* =========================================================
-   CICLO DE VIDA: carga, refresco y rotación de día
+   CICLO DE VIDA
    ========================================================= */
 let currentDayKey = dateKeyBogota(bogotaNow());
 
@@ -424,8 +383,8 @@ async function loadEvents(){
     renderAll();
     const stamp = bogotaNow().toLocaleTimeString('es-CO', { timeZone: CONFIG.TIMEZONE, hour12:false });
     statusLine.textContent = errors.length
-      ? `Actualizado ${stamp} · ${errors.length} calendario(s) con error (ver consola)`
-      : `Actualizado ${stamp} · ${events.length} partidos cargados`;
+      ? `Actualizado ${stamp} · ${errors.length} calendario(s) con error`
+      : `Actualizado ${stamp} · ${events.length} partidos`;
     if(errors.length) console.warn('Errores de calendario:', errors);
   }catch(err){
     console.error(err);
@@ -435,21 +394,16 @@ async function loadEvents(){
 
 function tick(){
   renderClock();
-  // recalcula estados en vivo/finalizado sin volver a pedir datos a Google
   renderAll();
-
   const nowKey = dateKeyBogota(bogotaNow());
   if(nowKey !== currentDayKey){
     currentDayKey = nowKey;
-    if(CONFIG.RELOAD_AT_MIDNIGHT){
-      location.reload();
-    } else {
-      loadEvents();
-    }
+    if(CONFIG.RELOAD_AT_MIDNIGHT) location.reload();
+    else loadEvents();
   }
 }
 
-document.getElementById('refreshBtn').addEventListener('click', loadEvents);
+window.addEventListener('resize', renderAll);
 
 loadEvents();
 renderClock();
