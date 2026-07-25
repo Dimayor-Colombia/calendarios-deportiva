@@ -139,7 +139,7 @@
   }
   .scoreBig{
     font-family:'DM Mono', monospace; font-weight:700;
-    font-size:calc(19px * var(--s)); color:var(--text); letter-spacing:1px; line-height:1;
+    font-size:calc(15px * var(--s)); color:var(--text); letter-spacing:.5px; line-height:1;
   }
   .scoreboard.live .scoreBig{ color:var(--danger); }
   .matchClock{
@@ -367,11 +367,11 @@ function ymdShift(dateKey, days){
   return d.toISOString().slice(0, 10).replace(/-/g, '');
 }
 
-async function fetchScoresForLeagueDay(slug, dateKey){
+async function fetchScoresForLeagueDay(slug, dateKey, ttlMs){
   const key = `${slug}|${dateKey}`;
   const cached = SCORES_CACHE[key];
   if(cached && cached.status === 'loading') return cached;
-  if(cached && (Date.now() - cached.ts) < CONFIG.SCORE_CACHE_TTL_MS) return cached;
+  if(cached && (Date.now() - cached.ts) < ttlMs) return cached;
 
   SCORES_CACHE[key] = { status: 'loading', ts: Date.now(), events: cached ? cached.events : [] };
   try{
@@ -446,13 +446,20 @@ async function loadScoreboardUpdates(){
     if(st.state !== 'finalizado' && st.state !== 'en_vivo') return;
     const dateKey = dateKeyBogota(ev.startISO);
     const key = `${ev.cal.espnSlug}|${dateKey}`;
-    const cached = SCORES_CACHE[key];
     const ttl = st.state === 'en_vivo' ? CONFIG.LIVE_CACHE_TTL_MS : CONFIG.SCORE_CACHE_TTL_MS;
+    const cached = SCORES_CACHE[key];
     const isFresh = cached && cached.status !== 'error' && (Date.now() - cached.ts) < ttl;
-    if(!isFresh) pending.set(key, { slug: ev.cal.espnSlug, dateKey });
+    if(!isFresh){
+      // Si la misma liga+fecha ya quedó pendiente con un TTL más largo (por otro
+      // partido finalizado), pero este partido está en vivo, usamos el TTL corto.
+      const existing = pending.get(key);
+      if(!existing || ttl < existing.ttl){
+        pending.set(key, { slug: ev.cal.espnSlug, dateKey, ttl });
+      }
+    }
   });
   if(pending.size === 0) return false;
-  await Promise.all([...pending.values()].map(p => fetchScoresForLeagueDay(p.slug, p.dateKey)));
+  await Promise.all([...pending.values()].map(p => fetchScoresForLeagueDay(p.slug, p.dateKey, p.ttl)));
   return true;
 }
 
