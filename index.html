@@ -118,7 +118,7 @@
     font-size:calc(9.5px * var(--s)); color:var(--muted); margin-top:calc(2px * var(--s));
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .match .row2{display:flex; align-items:center; justify-content:space-between; margin-top:calc(3px * var(--s));}
+  .match .row2{display:flex; align-items:center; justify-content:center; margin-top:calc(3px * var(--s));}
   .kickoff{
     font-family:'DM Mono', monospace; font-size:calc(12.5px * var(--s)); font-weight:500;
     color:var(--primary);
@@ -133,14 +133,32 @@
   .badge.live .dot{width:5px;height:5px;border-radius:50%;background:var(--danger); animation:pulse 1s infinite;}
   .badge.done{background:#eef1f5; color:var(--muted);}
 
-  /* Marcador final */
-  .scoreFinal{
-    font-family:'DM Mono', monospace; font-weight:700;
-    font-size:calc(13.5px * var(--s)); color:var(--text);
-    background:var(--soft-green); border-radius:6px;
-    padding:calc(1px * var(--s)) calc(8px * var(--s));
-    letter-spacing:.5px;
+  /* Marcador centrado (final o en vivo) */
+  .scoreboard{
+    display:flex; flex-direction:column; align-items:center; gap:1px;
   }
+  .scoreBig{
+    font-family:'DM Mono', monospace; font-weight:700;
+    font-size:calc(19px * var(--s)); color:var(--text); letter-spacing:1px; line-height:1;
+  }
+  .scoreboard.live .scoreBig{ color:var(--danger); }
+  .matchClock{
+    font-size:calc(8.5px * var(--s)); color:var(--muted); text-transform:uppercase; letter-spacing:.4px;
+    display:flex; align-items:center; gap:4px; margin-top:2px;
+  }
+  .liveDotSmall{ width:5px; height:5px; border-radius:50%; background:var(--danger); animation:pulse 1s infinite; flex:0 0 auto; }
+
+  /* Goleadores y tarjetas debajo del marcador final */
+  .matchEvents{
+    display:flex; justify-content:space-between; gap:calc(6px * var(--s));
+    margin-top:calc(4px * var(--s)); padding-top:calc(4px * var(--s));
+    border-top:1px dashed var(--line);
+  }
+  .teamEvents{
+    flex:1; font-size:calc(8px * var(--s)); color:var(--muted); line-height:1.5;
+    text-align:left; overflow:hidden;
+  }
+  .teamEvents.right{ text-align:right; }
 
   .progress{height:2px; border-radius:3px; background:var(--soft-red); margin-top:calc(4px * var(--s)); overflow:hidden;}
   .progress i{display:block; height:100%; background:var(--danger);}
@@ -212,7 +230,10 @@ const CONFIG = {
   ESPN_BASE: 'https://site.api.espn.com/apis/site/v2/sports/soccer',
   // Cada cuánto se reintenta pedir el marcador de un partido que
   // ya debería haber terminado pero aún no tenemos resultado en caché.
-  SCORE_CACHE_TTL_MS: 10 * 60 * 1000
+  SCORE_CACHE_TTL_MS: 10 * 60 * 1000,
+  // Partidos EN VIVO se refrescan mucho más seguido (incluye medio tiempo,
+  // entra en tiempo real mientras el partido está corriendo).
+  LIVE_CACHE_TTL_MS: 45 * 1000
 };
 
 const CALENDARS = [
@@ -385,42 +406,114 @@ function findEspnMatchForEvent(ev, espnEvents){
     const awayWords = normalizeName(away.team?.displayName).split(' ').filter(w => w.length > 3);
     const homeMatch = homeWords.length ? homeWords.some(w => title.includes(w)) : false;
     const awayMatch = awayWords.length ? awayWords.some(w => title.includes(w)) : false;
-    if(homeMatch && awayMatch) return { comp, home, away };
+    if(homeMatch && awayMatch) return { comp, home, away, eventId: e.id };
   }
   return null;
 }
 
-// Solo devuelve marcador si ESPN marca el partido como oficialmente terminado
-// (evita mostrar un resultado parcial si hubo demoras respecto al horario del calendario).
-function getEventScore(ev){
+// Devuelve el estado del marcador (en vivo o finalizado) de un evento, si hay cobertura.
+// completed:true solo cuando ESPN confirma que el partido terminó oficialmente.
+function getMatchInfo(ev){
   if(!ev.cal.espnSlug) return null;
   const st = matchStatus(ev);
-  if(st.state !== 'finalizado') return null;
+  if(st.state !== 'finalizado' && st.state !== 'en_vivo') return null;
   const dateKey = dateKeyBogota(ev.startISO);
   const cached = SCORES_CACHE[`${ev.cal.espnSlug}|${dateKey}`];
   if(!cached || cached.status !== 'ready') return null;
   const found = findEspnMatchForEvent(ev, cached.events);
-  if(!found || !found.comp.status?.type?.completed) return null;
-  return { golesHome: found.home.score, golesAway: found.away.score };
+  if(!found) return null;
+  const type = found.comp.status?.type;
+  if(st.state === 'finalizado' && !type?.completed) return null; // aún sin confirmar en ESPN
+  return {
+    golesHome: found.home.score,
+    golesAway: found.away.score,
+    completed: !!type?.completed,
+    clockText: type?.shortDetail || type?.detail || type?.description || '',
+    eventId: found.eventId,
+    slug: ev.cal.espnSlug,
+    homeTeamId: found.home.team?.id,
+    awayTeamId: found.away.team?.id
+  };
 }
 
-// Revisa qué partidos ya finalizados (según el horario) todavía no tienen marcador
-// en caché fresco, y dispara las consultas necesarias (una por liga+fecha, no por partido).
-async function loadScoresForFinishedMatches(){
+// Revisa qué partidos (en vivo o ya finalizados según el horario) todavía no tienen
+// marcador en caché fresco, y dispara las consultas necesarias (una por liga+fecha).
+async function loadScoreboardUpdates(){
   const pending = new Map();
   CACHE.events.forEach(ev => {
     if(!ev.cal.espnSlug) return;
     const st = matchStatus(ev);
-    if(st.state !== 'finalizado') return;
+    if(st.state !== 'finalizado' && st.state !== 'en_vivo') return;
     const dateKey = dateKeyBogota(ev.startISO);
     const key = `${ev.cal.espnSlug}|${dateKey}`;
     const cached = SCORES_CACHE[key];
-    const isFresh = cached && cached.status !== 'error' && (Date.now() - cached.ts) < CONFIG.SCORE_CACHE_TTL_MS;
+    const ttl = st.state === 'en_vivo' ? CONFIG.LIVE_CACHE_TTL_MS : CONFIG.SCORE_CACHE_TTL_MS;
+    const isFresh = cached && cached.status !== 'error' && (Date.now() - cached.ts) < ttl;
     if(!isFresh) pending.set(key, { slug: ev.cal.espnSlug, dateKey });
   });
   if(pending.size === 0) return false;
   await Promise.all([...pending.values()].map(p => fetchScoresForLeagueDay(p.slug, p.dateKey)));
   return true;
+}
+
+/* =========================================================
+   GOLEADORES Y TARJETAS (partidos finalizados)
+   ========================================================= */
+const DETAILS_CACHE = {}; // key: eventId -> {status:'loading'|'ready'|'error', ts, details:[]}
+
+async function fetchMatchDetails(slug, eventId){
+  const cached = DETAILS_CACHE[eventId];
+  if(cached && (cached.status === 'loading' || cached.status === 'ready')) return cached;
+  DETAILS_CACHE[eventId] = { status: 'loading', ts: Date.now(), details: [] };
+  try{
+    const url = `${CONFIG.ESPN_BASE}/${slug}/summary?event=${eventId}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`ESPN HTTP ${res.status}`);
+    const data = await res.json();
+    const details = data.header?.competitions?.[0]?.details || [];
+    DETAILS_CACHE[eventId] = { status: 'ready', ts: Date.now(), details };
+  }catch(err){
+    console.warn('Error detalle de partido', eventId, err);
+    DETAILS_CACHE[eventId] = { status: 'error', ts: Date.now(), details: [] };
+  }
+  return DETAILS_CACHE[eventId];
+}
+
+// Un partido finalizado ya no cambia, así que su detalle se pide una sola vez
+// (se reintenta solo si la consulta anterior falló).
+async function loadDetailsForFinishedMatches(){
+  const pending = [];
+  CACHE.events.forEach(ev => {
+    const info = getMatchInfo(ev);
+    if(!info || !info.completed || !info.eventId) return;
+    const cached = DETAILS_CACHE[info.eventId];
+    if(!cached || cached.status === 'error') pending.push({ slug: info.slug, eventId: info.eventId });
+  });
+  if(pending.length === 0) return false;
+  await Promise.all(pending.map(p => fetchMatchDetails(p.slug, p.eventId)));
+  return true;
+}
+
+// Convierte el detalle crudo de ESPN en dos listas (local/visitante) de goles y tarjetas.
+function getMatchEvents(info){
+  const cached = DETAILS_CACHE[info.eventId];
+  if(!cached || cached.status !== 'ready') return { home: [], away: [] };
+  const home = []; const away = [];
+  cached.details.forEach(d => {
+    const text = d.type?.text || '';
+    let icon = null;
+    if(/yellow/i.test(text)) icon = '🟨';
+    else if(/red/i.test(text)) icon = '🟥';
+    else if(/goal/i.test(text)) icon = '⚽';
+    if(!icon) return; // solo nos interesan goles y tarjetas
+    const name = d.athletesInvolved?.[0]?.displayName || d.athletesInvolved?.[0]?.shortName || '';
+    const minute = d.clock?.displayValue || '';
+    const line = `${icon} ${minute} ${name}`.trim();
+    const teamId = String(d.team?.id ?? '');
+    if(teamId === String(info.homeTeamId)) home.push(line);
+    else if(teamId === String(info.awayTeamId)) away.push(line);
+  });
+  return { home, away };
 }
 
 /* =========================================================
@@ -430,25 +523,50 @@ let CACHE = { events: [] };
 
 function matchCardHTML(ev){
   const st = matchStatus(ev);
-  let statusHTML;
+  const info = getMatchInfo(ev); // null si no hay cobertura ESPN o todavía no hay datos
+  let centerHTML = '';
+  let eventsHTML = '';
+  let showEstimatedProgress = false;
+
   if(st.state === 'en_vivo'){
-    statusHTML = `<span class="badge live"><span class="dot"></span>Vivo</span>`;
+    if(info){
+      centerHTML = `<div class="scoreboard live">
+        <div class="scoreBig">${info.golesHome} - ${info.golesAway}</div>
+        <div class="matchClock"><span class="liveDotSmall"></span>${info.clockText || 'En vivo'}</div>
+      </div>`;
+    } else {
+      centerHTML = `<span class="badge live"><span class="dot"></span>Vivo</span>`;
+      showEstimatedProgress = true; // sin datos de ESPN, usamos el estimado por horario
+    }
   } else if(st.state === 'finalizado'){
-    const score = getEventScore(ev);
-    statusHTML = score
-      ? `<span class="scoreFinal">${score.golesHome} - ${score.golesAway}</span>`
-      : `<span class="badge done">Fin</span>`;
+    if(info && info.completed){
+      centerHTML = `<div class="scoreboard">
+        <div class="scoreBig">${info.golesHome} - ${info.golesAway}</div>
+        <div class="matchClock">Finalizado</div>
+      </div>`;
+      const evs = info.eventId ? getMatchEvents(info) : { home: [], away: [] };
+      if(evs.home.length || evs.away.length){
+        eventsHTML = `<div class="matchEvents">
+          <div class="teamEvents">${evs.home.map(l => `<div>${l}</div>`).join('')}</div>
+          <div class="teamEvents right">${evs.away.map(l => `<div>${l}</div>`).join('')}</div>
+        </div>`;
+      }
+    } else {
+      centerHTML = `<span class="badge done">Fin</span>`;
+    }
   } else {
-    statusHTML = `<span class="kickoff">${ev.allDay ? '--:--' : fmtTime(ev.startISO)}</span>`;
+    centerHTML = `<span class="kickoff">${ev.allDay ? '--:--' : fmtTime(ev.startISO)}</span>`;
   }
-  const progressHTML = st.state === 'en_vivo'
+
+  const progressHTML = showEstimatedProgress
     ? `<div class="progress"><i style="width:${st.pct.toFixed(0)}%"></i></div>` : '';
 
   return `<div class="match ${st.state === 'finalizado' ? 'finalizado':''}" style="--comp-color:${ev.cal.color}">
     <div class="comp"><img src="${ev.cal.logo}" alt="" onerror="this.style.display='none'">${ev.cal.label}</div>
     <div class="title">${ev.title}</div>
     ${ev.location ? `<div class="venue">📍 ${ev.location}</div>` : ''}
-    <div class="row2">${statusHTML}</div>
+    <div class="row2">${centerHTML}</div>
+    ${eventsHTML}
     ${progressHTML}
   </div>`;
 }
@@ -547,9 +665,11 @@ async function loadEvents(){
       : `Actualizado ${stamp} · ${visibleCount} partidos`;
     if(errors.length) console.warn('Errores de calendario:', errors);
 
-    // Después de refrescar eventos, busca marcadores de lo que ya terminó.
-    const updated = await loadScoresForFinishedMatches();
-    if(updated) renderAll();
+    // Después de refrescar eventos, busca marcadores (en vivo y finalizados)
+    // y, para los que ya terminaron, también goleadores/tarjetas.
+    const scoresUpdated = await loadScoreboardUpdates();
+    const detailsUpdated = await loadDetailsForFinishedMatches();
+    if(scoresUpdated || detailsUpdated) renderAll();
   }catch(err){
     console.error(err);
     statusLine.textContent = 'Error al cargar calendarios. Revisa la API key y los permisos.';
@@ -565,8 +685,10 @@ function tick(){
     if(CONFIG.RELOAD_AT_MIDNIGHT) location.reload();
     else loadEvents();
   }
-  // Reintenta marcadores pendientes (respeta el TTL de caché, no dispara de más).
-  loadScoresForFinishedMatches().then(updated => { if(updated) renderAll(); });
+  // Reintenta marcadores/detalle pendientes (respeta el TTL de caché, no dispara de más).
+  // Los partidos en vivo se refrescan cada ~45s gracias a LIVE_CACHE_TTL_MS.
+  Promise.all([loadScoreboardUpdates(), loadDetailsForFinishedMatches()])
+    .then(([a, b]) => { if(a || b) renderAll(); });
 }
 
 window.addEventListener('resize', renderAll);
