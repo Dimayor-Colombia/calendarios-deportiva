@@ -495,18 +495,19 @@ async function loadDetailsForFinishedMatches(){
 }
 
 // Convierte el detalle crudo de ESPN en dos listas (local/visitante) de goles y tarjetas.
+// ESPN no manda un campo de texto tipo "Goal"/"Yellow Card": usa banderas booleanas
+// directas (scoringPlay, redCard, yellowCard, ownGoal) por cada evento.
 function getMatchEvents(info){
   const cached = DETAILS_CACHE[info.eventId];
   if(!cached || cached.status !== 'ready') return { home: [], away: [] };
   const home = []; const away = [];
   cached.details.forEach(d => {
-    const text = d.type?.text || '';
     let icon = null;
-    if(/yellow/i.test(text)) icon = '🟨';
-    else if(/red/i.test(text)) icon = '🟥';
-    else if(/goal/i.test(text)) icon = '⚽';
+    if(d.redCard) icon = '🟥';
+    else if(d.yellowCard) icon = '🟨';
+    else if(d.scoringPlay) icon = d.ownGoal ? '⚽ (p.p.)' : '⚽';
     if(!icon) return; // solo nos interesan goles y tarjetas
-    const name = d.athletesInvolved?.[0]?.displayName || d.athletesInvolved?.[0]?.shortName || '';
+    const name = d.participants?.[0]?.athlete?.displayName || d.participants?.[0]?.athlete?.shortName || '';
     const minute = d.clock?.displayValue || '';
     const line = `${icon} ${minute} ${name}`.trim();
     const teamId = String(d.team?.id ?? '');
