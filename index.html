@@ -103,7 +103,7 @@
     padding:calc(6px * var(--s)) calc(8px * var(--s));
     box-shadow:var(--shadow-sm);
   }
-  .match.finalizado{opacity:.55;}
+  .match.finalizado{opacity:.7;}
   .match .comp{
     font-size:calc(8.5px * var(--s)); letter-spacing:.4px; text-transform:uppercase;
     color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -132,6 +132,15 @@
   .badge.live{background:var(--soft-red); color:var(--danger);}
   .badge.live .dot{width:5px;height:5px;border-radius:50%;background:var(--danger); animation:pulse 1s infinite;}
   .badge.done{background:#eef1f5; color:var(--muted);}
+
+  /* Marcador final */
+  .scoreFinal{
+    font-family:'DM Mono', monospace; font-weight:700;
+    font-size:calc(13.5px * var(--s)); color:var(--text);
+    background:var(--soft-green); border-radius:6px;
+    padding:calc(1px * var(--s)) calc(8px * var(--s));
+    letter-spacing:.5px;
+  }
 
   .progress{height:2px; border-radius:3px; background:var(--soft-red); margin-top:calc(4px * var(--s)); overflow:hidden;}
   .progress i{display:block; height:100%; background:var(--danger);}
@@ -194,19 +203,37 @@ const CONFIG = {
   TICK_MS: 20 * 1000,
   MATCH_DURATION_MIN: 130,
   RELOAD_AT_MIDNIGHT: true,
-  MIN_SCALE: 0.55
+  MIN_SCALE: 0.55,
+
+  // --- API-Football (marcador final) ---
+  // Cuenta directa en api-football.com -> header x-apisports-key
+  API_FOOTBALL_KEY: 'e59eebaae47a60abcaf987c4b32d36b6',
+  API_FOOTBALL_BASE: 'https://v3.football.api-sports.io',
+  // "season" que usa API-Football para las ligas sudamericanas suele ser
+  // el año calendario completo (Apertura + Finalización). Ajusta si tu
+  // liga usa otro criterio al revisar /leagues?search=Colombia.
+  SEASON: 2026,
+  // Cada cuánto se reintenta pedir el marcador de un partido que
+  // ya debería haber terminado pero aún no tenemos resultado en caché.
+  SCORE_CACHE_TTL_MS: 10 * 60 * 1000
 };
 
 const CALENDARS = [
-  { id: 'c_74d60f90f8e2a5d566429af24fd4c5e4c6a083e5a62027cec34a5c362b8dd49a@group.calendar.google.com', label: 'Liga BetPlay Dimayor', color: '#f3cc23', logo: 'https://lh3.googleusercontent.com/d/1tVCRbR0BNTcSqzoDd0jgs_9dvrvYK2pX' },
-  { id: 'c_b440f465efac86a96197d6c92dcdc371f00f55c22b201b5e4bdb446aa1d558e0@group.calendar.google.com', label: 'Torneo BetPlay Dimayor', color: '#6fb2e3', logo: 'https://lh3.googleusercontent.com/d/1t64NZwLCkCo4ofMZVYzhfcV8pSsVwCfv' },
-  { id: 'c_f4e132b3db024af62da58634ae149e2baabbe282f113c0f7d9ddea1ffe67d42f@group.calendar.google.com', label: 'Copa BetPlay Dimayor', color: '#3bad4c', logo: 'https://lh3.googleusercontent.com/d/1TELaujxqcd_Q_I3HwUxriPuUuwOx2Wrl' },
-  { id: 'c_d95f7411f89d37a29d9135d9b963cb157e2c0e8ca5971cfe34320415fa6d9254@group.calendar.google.com', label: 'Superliga BetPlay Dimayor', color: '#062a63', logo: 'https://lh3.googleusercontent.com/d/1UJxk_10wBGXLNs5_gaVFI6xmUkT47uYq' },
-  { id: 'c_4317288379f78b336a1509f4f6f678aad84d2b08c72797d268346ea2122beb79@group.calendar.google.com', label: 'Liga Femenina BetPlay Dimayor', color: '#b51a65', logo: 'https://lh3.googleusercontent.com/d/1GRGoELSTVM2sDydzsswzi6XvjCDxK84y' },
-  { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#64748b', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU' },
-  { id: 'c_b9881758c97c62967ca1e1638d560af12815ed0262b6bf7d7afc2d910b7cf03a@group.calendar.google.com', label: 'CONMEBOL Libertadores', color: '#c9a227', logo: 'https://lh3.googleusercontent.com/d/1iRkeR307HOxDvVcV8u_IKMkZ3_b0GAye' },
-  { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#c23b3b', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE' },
-  { id: '4de747g9v5rqo0ohmj87j4sf1fg9m2c8@import.calendar.google.com', label: 'Copa Mundial de la FIFA 2026', color: '#2fb8a6', logo: 'https://lh3.googleusercontent.com/d/1Td-x8UWchJUcFPqIPhxfYJlWzpvF6t9u' }
+  // leagueId: pégalo aquí después de correr en la consola del navegador (F12):
+  //   fetch("https://v3.football.api-sports.io/leagues?search=Colombia",
+  //     {headers:{"x-apisports-key":"TU_API_FOOTBALL_KEY_AQUI"}})
+  //     .then(r=>r.json()).then(d=>console.log(d.response))
+  // Busca en el resultado el nombre exacto de la competencia y copia su "league.id".
+  // Mientras leagueId sea null, esa competencia sigue mostrando solo el badge "Fin" (sin marcador).
+  { id: 'c_74d60f90f8e2a5d566429af24fd4c5e4c6a083e5a62027cec34a5c362b8dd49a@group.calendar.google.com', label: 'Liga BetPlay Dimayor', color: '#f3cc23', logo: 'https://lh3.googleusercontent.com/d/1tVCRbR0BNTcSqzoDd0jgs_9dvrvYK2pX', leagueId: 239 },
+  { id: 'c_b440f465efac86a96197d6c92dcdc371f00f55c22b201b5e4bdb446aa1d558e0@group.calendar.google.com', label: 'Torneo BetPlay Dimayor', color: '#6fb2e3', logo: 'https://lh3.googleusercontent.com/d/1t64NZwLCkCo4ofMZVYzhfcV8pSsVwCfv', leagueId: 240 },
+  { id: 'c_f4e132b3db024af62da58634ae149e2baabbe282f113c0f7d9ddea1ffe67d42f@group.calendar.google.com', label: 'Copa BetPlay Dimayor', color: '#3bad4c', logo: 'https://lh3.googleusercontent.com/d/1TELaujxqcd_Q_I3HwUxriPuUuwOx2Wrl', leagueId: 241 },
+  { id: 'c_d95f7411f89d37a29d9135d9b963cb157e2c0e8ca5971cfe34320415fa6d9254@group.calendar.google.com', label: 'Superliga BetPlay Dimayor', color: '#062a63', logo: 'https://lh3.googleusercontent.com/d/1UJxk_10wBGXLNs5_gaVFI6xmUkT47uYq', leagueId: null },
+  { id: 'c_4317288379f78b336a1509f4f6f678aad84d2b08c72797d268346ea2122beb79@group.calendar.google.com', label: 'Liga Femenina BetPlay Dimayor', color: '#b51a65', logo: 'https://lh3.googleusercontent.com/d/1GRGoELSTVM2sDydzsswzi6XvjCDxK84y', leagueId: 712 },
+  { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#64748b', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU', leagueId: null },
+  { id: 'c_b9881758c97c62967ca1e1638d560af12815ed0262b6bf7d7afc2d910b7cf03a@group.calendar.google.com', label: 'CONMEBOL Libertadores', color: '#c9a227', logo: 'https://lh3.googleusercontent.com/d/1iRkeR307HOxDvVcV8u_IKMkZ3_b0GAye', leagueId: 13 },
+  { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#c23b3b', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE', leagueId: 11 },
+  { id: '4de747g9v5rqo0ohmj87j4sf1fg9m2c8@import.calendar.google.com', label: 'Copa Mundial de la FIFA 2026', color: '#2fb8a6', logo: 'https://lh3.googleusercontent.com/d/1Td-x8UWchJUcFPqIPhxfYJlWzpvF6t9u', leagueId: null }
 ];
 
 /* =========================================================
@@ -305,6 +332,90 @@ function matchStatus(ev){
 const STATE_ORDER = { en_vivo:0, programado:1, finalizado:2 };
 
 /* =========================================================
+   MARCADOR FINAL (API-Football)
+   ========================================================= */
+const SCORES_CACHE = {}; // key: `${leagueId}|${dateKey}` -> {status:'loading'|'ready'|'error', ts, fixtures:[]}
+
+function normalizeName(s){
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+async function fetchScoresForLeagueDay(leagueId, dateKey){
+  const key = `${leagueId}|${dateKey}`;
+  const cached = SCORES_CACHE[key];
+  if(cached && cached.status === 'loading') return cached;
+  if(cached && (Date.now() - cached.ts) < CONFIG.SCORE_CACHE_TTL_MS) return cached;
+
+  SCORES_CACHE[key] = { status: 'loading', ts: Date.now(), fixtures: cached ? cached.fixtures : [] };
+  try{
+    const url = `${CONFIG.API_FOOTBALL_BASE}/fixtures?league=${leagueId}&season=${CONFIG.SEASON}&date=${dateKey}`;
+    const res = await fetch(url, { headers: { 'x-apisports-key': CONFIG.API_FOOTBALL_KEY } });
+    if(!res.ok) throw new Error(`API-Football HTTP ${res.status}`);
+    const data = await res.json();
+    SCORES_CACHE[key] = { status: 'ready', ts: Date.now(), fixtures: data.response || [] };
+  }catch(err){
+    console.warn('Error marcador liga', leagueId, dateKey, err);
+    SCORES_CACHE[key] = { status: 'error', ts: Date.now(), fixtures: [] };
+  }
+  return SCORES_CACHE[key];
+}
+
+// Empareja un evento de Google Calendar con un fixture de API-Football
+// comparando palabras del nombre de cada equipo contra el título del evento.
+function findFixtureForEvent(ev, fixtures){
+  if(!fixtures || fixtures.length === 0) return null;
+  const title = normalizeName(ev.title);
+  for(const fx of fixtures){
+    const home = normalizeName(fx.teams?.home?.name);
+    const away = normalizeName(fx.teams?.away?.name);
+    const homeWords = home.split(' ').filter(w => w.length > 3);
+    const awayWords = away.split(' ').filter(w => w.length > 3);
+    const homeMatch = homeWords.length ? homeWords.some(w => title.includes(w)) : false;
+    const awayMatch = awayWords.length ? awayWords.some(w => title.includes(w)) : false;
+    if(homeMatch && awayMatch) return fx;
+  }
+  return null;
+}
+
+// Solo devuelve marcador si el partido ya está oficialmente terminado en API-Football
+// (evita mostrar un resultado parcial si hubo demoras respecto al horario del calendario).
+const FINISHED_STATUSES = new Set(['FT','AET','PEN']);
+function getEventScore(ev){
+  if(!ev.cal.leagueId) return null;
+  const st = matchStatus(ev);
+  if(st.state !== 'finalizado') return null;
+  const dateKey = dateKeyBogota(ev.startISO);
+  const cached = SCORES_CACHE[`${ev.cal.leagueId}|${dateKey}`];
+  if(!cached || cached.status !== 'ready') return null;
+  const fx = findFixtureForEvent(ev, cached.fixtures);
+  if(!fx || !FINISHED_STATUSES.has(fx.fixture?.status?.short)) return null;
+  return { golesHome: fx.goals.home, golesAway: fx.goals.away };
+}
+
+// Revisa qué partidos ya finalizados (según el horario) todavía no tienen marcador
+// en caché fresco, y dispara las consultas necesarias (una por liga+fecha, no por partido).
+async function loadScoresForFinishedMatches(){
+  const pending = new Map();
+  CACHE.events.forEach(ev => {
+    if(!ev.cal.leagueId) return;
+    const st = matchStatus(ev);
+    if(st.state !== 'finalizado') return;
+    const dateKey = dateKeyBogota(ev.startISO);
+    const key = `${ev.cal.leagueId}|${dateKey}`;
+    const cached = SCORES_CACHE[key];
+    const isFresh = cached && cached.status !== 'error' && (Date.now() - cached.ts) < CONFIG.SCORE_CACHE_TTL_MS;
+    if(!isFresh) pending.set(key, { leagueId: ev.cal.leagueId, dateKey });
+  });
+  if(pending.size === 0) return false;
+  await Promise.all([...pending.values()].map(p => fetchScoresForLeagueDay(p.leagueId, p.dateKey)));
+  return true;
+}
+
+/* =========================================================
    RENDER
    ========================================================= */
 let CACHE = { events: [] };
@@ -312,9 +423,16 @@ let CACHE = { events: [] };
 function matchCardHTML(ev){
   const st = matchStatus(ev);
   let statusHTML;
-  if(st.state === 'en_vivo') statusHTML = `<span class="badge live"><span class="dot"></span>Vivo</span>`;
-  else if(st.state === 'finalizado') statusHTML = `<span class="badge done">Fin</span>`;
-  else statusHTML = `<span class="kickoff">${ev.allDay ? '--:--' : fmtTime(ev.startISO)}</span>`;
+  if(st.state === 'en_vivo'){
+    statusHTML = `<span class="badge live"><span class="dot"></span>Vivo</span>`;
+  } else if(st.state === 'finalizado'){
+    const score = getEventScore(ev);
+    statusHTML = score
+      ? `<span class="scoreFinal">${score.golesHome} - ${score.golesAway}</span>`
+      : `<span class="badge done">Fin</span>`;
+  } else {
+    statusHTML = `<span class="kickoff">${ev.allDay ? '--:--' : fmtTime(ev.startISO)}</span>`;
+  }
   const progressHTML = st.state === 'en_vivo'
     ? `<div class="progress"><i style="width:${st.pct.toFixed(0)}%"></i></div>` : '';
 
@@ -420,6 +538,10 @@ async function loadEvents(){
       ? `Actualizado ${stamp} · ${errors.length} calendario(s) con error`
       : `Actualizado ${stamp} · ${visibleCount} partidos`;
     if(errors.length) console.warn('Errores de calendario:', errors);
+
+    // Después de refrescar eventos, busca marcadores de lo que ya terminó.
+    const updated = await loadScoresForFinishedMatches();
+    if(updated) renderAll();
   }catch(err){
     console.error(err);
     statusLine.textContent = 'Error al cargar calendarios. Revisa la API key y los permisos.';
@@ -435,6 +557,8 @@ function tick(){
     if(CONFIG.RELOAD_AT_MIDNIGHT) location.reload();
     else loadEvents();
   }
+  // Reintenta marcadores pendientes (respeta el TTL de caché, no dispara de más).
+  loadScoresForFinishedMatches().then(updated => { if(updated) renderAll(); });
 }
 
 window.addEventListener('resize', renderAll);
