@@ -217,6 +217,7 @@ const CONFIG = {
   API_KEY: 'AIzaSyC2oQ0Y7RYZX_lgkgPIchochLltCnN78nc',
   TIMEZONE: 'America/Bogota',
   DAYS_AHEAD: 7,
+  DAYS_BEFORE: 1, // cuántos días atrás mostrar (corre la ventana, sigue en 7 columnas totales)
   REFRESH_EVENTS_MS: 3 * 60 * 1000,
   TICK_MS: 20 * 1000,
   MATCH_DURATION_MIN: 130,
@@ -277,7 +278,7 @@ function fmtDayShort(d){
 function buildDayList(){
   const now = bogotaNow();
   const days = [];
-  for(let i=0;i<CONFIG.DAYS_AHEAD;i++){
+  for(let i = -CONFIG.DAYS_BEFORE; i < CONFIG.DAYS_AHEAD - CONFIG.DAYS_BEFORE; i++){
     const d = new Date(now);
     d.setDate(d.getDate()+i);
     days.push({
@@ -320,8 +321,8 @@ async function fetchCalendarEvents(cal, timeMinISO, timeMaxISO){
 }
 async function fetchAllEvents(){
   const now = bogotaNow();
-  const timeMin = new Date(now); timeMin.setHours(0,0,0,0);
-  const timeMax = new Date(now); timeMax.setDate(timeMax.getDate()+CONFIG.DAYS_AHEAD); timeMax.setHours(23,59,59,999);
+  const timeMin = new Date(now); timeMin.setDate(timeMin.getDate() - CONFIG.DAYS_BEFORE); timeMin.setHours(0,0,0,0);
+  const timeMax = new Date(now); timeMax.setDate(timeMax.getDate() + (CONFIG.DAYS_AHEAD - CONFIG.DAYS_BEFORE - 1)); timeMax.setHours(23,59,59,999);
   const results = await Promise.allSettled(
     CALENDARS.map(cal => fetchCalendarEvents(cal, timeMin.toISOString(), timeMax.toISOString()))
   );
