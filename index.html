@@ -470,35 +470,39 @@ async function loadScoreboardUpdates(){
 /* =========================================================
    GOLEADORES Y TARJETAS (partidos finalizados)
    ========================================================= */
-const DETAILS_CACHE = {}; // key: eventId -> {status:'loading'|'ready'|'error', ts, details:[]}
+const DETAILS_CACHE = {}; // key: eventId -> {status, ts, details:[], completed:bool}
 
 async function fetchMatchDetails(slug, eventId){
   const cached = DETAILS_CACHE[eventId];
-  if(cached && (cached.status === 'loading' || cached.status === 'ready')) return cached;
-  DETAILS_CACHE[eventId] = { status: 'loading', ts: Date.now(), details: [] };
+  if(cached && cached.status === 'loading') return cached;
+  if(cached && cached.completed) return cached; // ya terminó, no vuelve a cambiar
+  if(cached && cached.status === 'ready' && (Date.now() - cached.ts) < CONFIG.LIVE_CACHE_TTL_MS) return cached;
+  DETAILS_CACHE[eventId] = { status: 'loading', ts: Date.now(), details: cached ? cached.details : [], completed: false };
   try{
     const url = `${CONFIG.ESPN_BASE}/${slug}/summary?event=${eventId}`;
     const res = await fetch(url);
     if(!res.ok) throw new Error(`ESPN HTTP ${res.status}`);
     const data = await res.json();
     const details = data.header?.competitions?.[0]?.details || [];
-    DETAILS_CACHE[eventId] = { status: 'ready', ts: Date.now(), details };
+    const completed = !!data.header?.competitions?.[0]?.status?.type?.completed;
+    DETAILS_CACHE[eventId] = { status: 'ready', ts: Date.now(), details, completed };
   }catch(err){
     console.warn('Error detalle de partido', eventId, err);
-    DETAILS_CACHE[eventId] = { status: 'error', ts: Date.now(), details: [] };
+    DETAILS_CACHE[eventId] = { status: 'error', ts: Date.now(), details: [], completed: false };
   }
   return DETAILS_CACHE[eventId];
 }
 
-// Un partido finalizado ya no cambia, así que su detalle se pide una sola vez
-// (se reintenta solo si la consulta anterior falló).
-async function loadDetailsForFinishedMatches(){
+// Pide goles/tarjetas tanto de partidos en vivo (se refresca cada ~45s, igual que el
+// marcador) como de finalizados (una sola vez; se congela con el flag "completed").
+async function loadMatchDetailsUpdates(){
   const pending = [];
   CACHE.events.forEach(ev => {
     const info = getMatchInfo(ev);
-    if(!info || !info.completed || !info.eventId) return;
+    if(!info || !info.eventId) return; // sin cobertura ESPN o sin datos todavía
     const cached = DETAILS_CACHE[info.eventId];
-    if(!cached || cached.status === 'error') pending.push({ slug: info.slug, eventId: info.eventId });
+    if(cached && cached.completed) return; // ya terminó, no cambia más
+    pending.push({ slug: info.slug, eventId: info.eventId });
   });
   if(pending.length === 0) return false;
   await Promise.all(pending.map(p => fetchMatchDetails(p.slug, p.eventId)));
@@ -546,6 +550,13 @@ function matchCardHTML(ev){
         <div class="scoreBig">${info.golesHome} - ${info.golesAway}</div>
         <div class="matchClock"><span class="liveDotSmall"></span>${info.clockText || 'En vivo'}</div>
       </div>`;
+      const evsLive = info.eventId ? getMatchEvents(info) : { home: [], away: [] };
+      if(evsLive.home.length || evsLive.away.length){
+        eventsHTML = `<div class="matchEvents">
+          <div class="teamEvents">${evsLive.home.map(l => `<div>${l}</div>`).join('')}</div>
+          <div class="teamEvents right">${evsLive.away.map(l => `<div>${l}</div>`).join('')}</div>
+        </div>`;
+      }
     } else {
       centerHTML = `<span class="badge live"><span class="dot"></span>Vivo</span>`;
       showEstimatedProgress = true; // sin datos de ESPN, usamos el estimado por horario
@@ -680,7 +691,7 @@ async function loadEvents(){
     // Después de refrescar eventos, busca marcadores (en vivo y finalizados)
     // y, para los que ya terminaron, también goleadores/tarjetas.
     const scoresUpdated = await loadScoreboardUpdates();
-    const detailsUpdated = await loadDetailsForFinishedMatches();
+    const detailsUpdated = await loadMatchDetailsUpdates();
     if(scoresUpdated || detailsUpdated) renderAll();
   }catch(err){
     console.error(err);
@@ -698,7 +709,7 @@ function tick(){
   }
   // Reintenta marcadores/detalle pendientes (respeta el TTL de caché, no dispara de más).
   // Los partidos en vivo se refrescan cada ~45s gracias a LIVE_CACHE_TTL_MS.
-  Promise.all([loadScoreboardUpdates(), loadDetailsForFinishedMatches()])
+  Promise.all([loadScoreboardUpdates(), loadMatchDetailsUpdates()])
     .then(([a, b]) => { if(a || b) renderAll(); });
 }
 
