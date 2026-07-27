@@ -245,15 +245,15 @@ const CALENDARS = [
   // Mientras espnSlug sea null, esa competencia sigue mostrando solo el badge "Fin" (sin marcador).
   // Para buscar/confirmar un slug nuevo: prueba
   //   https://site.api.espn.com/apis/site/v2/sports/soccer/<slug>/scoreboard
-  { id: 'c_74d60f90f8e2a5d566429af24fd4c5e4c6a083e5a62027cec34a5c362b8dd49a@group.calendar.google.com', label: 'Liga BetPlay Dimayor', color: '#f3cc23', logo: 'https://lh3.googleusercontent.com/d/1tVCRbR0BNTcSqzoDd0jgs_9dvrvYK2pX', espnSlug: 'col.1' },
-  { id: 'c_b440f465efac86a96197d6c92dcdc371f00f55c22b201b5e4bdb446aa1d558e0@group.calendar.google.com', label: 'Torneo BetPlay Dimayor', color: '#6fb2e3', logo: 'https://lh3.googleusercontent.com/d/1t64NZwLCkCo4ofMZVYzhfcV8pSsVwCfv', espnSlug: 'col.2' },
-  { id: 'c_f4e132b3db024af62da58634ae149e2baabbe282f113c0f7d9ddea1ffe67d42f@group.calendar.google.com', label: 'Copa BetPlay Dimayor', color: '#3bad4c', logo: 'https://lh3.googleusercontent.com/d/1TELaujxqcd_Q_I3HwUxriPuUuwOx2Wrl', espnSlug: 'col.copa' },
-  { id: 'c_d95f7411f89d37a29d9135d9b963cb157e2c0e8ca5971cfe34320415fa6d9254@group.calendar.google.com', label: 'Superliga BetPlay Dimayor', color: '#062a63', logo: 'https://lh3.googleusercontent.com/d/1UJxk_10wBGXLNs5_gaVFI6xmUkT47uYq', espnSlug: 'col.superliga' },
-  { id: 'c_4317288379f78b336a1509f4f6f678aad84d2b08c72797d268346ea2122beb79@group.calendar.google.com', label: 'Liga Femenina BetPlay Dimayor', color: '#b51a65', logo: 'https://lh3.googleusercontent.com/d/1GRGoELSTVM2sDydzsswzi6XvjCDxK84y', espnSlug: null },
-  { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#64748b', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU', espnSlug: null },
-  { id: 'c_b9881758c97c62967ca1e1638d560af12815ed0262b6bf7d7afc2d910b7cf03a@group.calendar.google.com', label: 'CONMEBOL Libertadores', color: '#c9a227', logo: 'https://lh3.googleusercontent.com/d/1iRkeR307HOxDvVcV8u_IKMkZ3_b0GAye', espnSlug: 'conmebol.libertadores' },
-  { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#c23b3b', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE', espnSlug: 'conmebol.sudamericana' },
-  { id: '4de747g9v5rqo0ohmj87j4sf1fg9m2c8@import.calendar.google.com', label: 'Copa Mundial de la FIFA 2026', color: '#2fb8a6', logo: 'https://lh3.googleusercontent.com/d/1Td-x8UWchJUcFPqIPhxfYJlWzpvF6t9u', espnSlug: null }
+  { id: 'c_74d60f90f8e2a5d566429af24fd4c5e4c6a083e5a62027cec34a5c362b8dd49a@group.calendar.google.com', label: 'Liga BetPlay Dimayor', color: '#f3cc23', logo: 'https://lh3.googleusercontent.com/d/1tVCRbR0BNTcSqzoDd0jgs_9dvrvYK2pX', espnSlug: 'col.1', sportsDbId: 4497 },
+  { id: 'c_b440f465efac86a96197d6c92dcdc371f00f55c22b201b5e4bdb446aa1d558e0@group.calendar.google.com', label: 'Torneo BetPlay Dimayor', color: '#6fb2e3', logo: 'https://lh3.googleusercontent.com/d/1t64NZwLCkCo4ofMZVYzhfcV8pSsVwCfv', espnSlug: 'col.2', sportsDbId: 4951 },
+  { id: 'c_f4e132b3db024af62da58634ae149e2baabbe282f113c0f7d9ddea1ffe67d42f@group.calendar.google.com', label: 'Copa BetPlay Dimayor', color: '#3bad4c', logo: 'https://lh3.googleusercontent.com/d/1TELaujxqcd_Q_I3HwUxriPuUuwOx2Wrl', espnSlug: 'col.copa', sportsDbId: null },
+  { id: 'c_d95f7411f89d37a29d9135d9b963cb157e2c0e8ca5971cfe34320415fa6d9254@group.calendar.google.com', label: 'Superliga BetPlay Dimayor', color: '#062a63', logo: 'https://lh3.googleusercontent.com/d/1UJxk_10wBGXLNs5_gaVFI6xmUkT47uYq', espnSlug: 'col.superliga', sportsDbId: null },
+  { id: 'c_4317288379f78b336a1509f4f6f678aad84d2b08c72797d268346ea2122beb79@group.calendar.google.com', label: 'Liga Femenina BetPlay Dimayor', color: '#b51a65', logo: 'https://lh3.googleusercontent.com/d/1GRGoELSTVM2sDydzsswzi6XvjCDxK84y', espnSlug: null, sportsDbId: null },
+  { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#64748b', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU', espnSlug: null, sportsDbId: null },
+  { id: 'c_b9881758c97c62967ca1e1638d560af12815ed0262b6bf7d7afc2d910b7cf03a@group.calendar.google.com', label: 'CONMEBOL Libertadores', color: '#c9a227', logo: 'https://lh3.googleusercontent.com/d/1iRkeR307HOxDvVcV8u_IKMkZ3_b0GAye', espnSlug: 'conmebol.libertadores', sportsDbId: null },
+  { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#c23b3b', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE', espnSlug: 'conmebol.sudamericana', sportsDbId: null },
+  { id: '4de747g9v5rqo0ohmj87j4sf1fg9m2c8@import.calendar.google.com', label: 'Copa Mundial de la FIFA 2026', color: '#2fb8a6', logo: 'https://lh3.googleusercontent.com/d/1Td-x8UWchJUcFPqIPhxfYJlWzpvF6t9u', espnSlug: null, sportsDbId: null }
 ];
 
 /* =========================================================
@@ -416,28 +416,121 @@ function findEspnMatchForEvent(ev, espnEvents){
 }
 
 // Devuelve el estado del marcador (en vivo o finalizado) de un evento, si hay cobertura.
-// completed:true solo cuando ESPN confirma que el partido terminó oficialmente.
+// Intenta primero ESPN (marcador en vivo + goleadores/tarjetas); si el partido ya
+// finalizó por horario y ESPN no lo confirmó, cae a TheSportsDB como respaldo.
 function getMatchInfo(ev){
-  if(!ev.cal.espnSlug) return null;
   const st = matchStatus(ev);
   if(st.state !== 'finalizado' && st.state !== 'en_vivo') return null;
   const dateKey = dateKeyBogota(ev.startISO);
-  const cached = SCORES_CACHE[`${ev.cal.espnSlug}|${dateKey}`];
-  if(!cached || cached.status !== 'ready') return null;
-  const found = findEspnMatchForEvent(ev, cached.events);
-  if(!found) return null;
-  const type = found.comp.status?.type;
-  if(st.state === 'finalizado' && !type?.completed) return null; // aún sin confirmar en ESPN
-  return {
-    golesHome: found.home.score,
-    golesAway: found.away.score,
-    completed: !!type?.completed,
-    clockText: type?.shortDetail || type?.detail || type?.description || '',
-    eventId: found.eventId,
-    slug: ev.cal.espnSlug,
-    homeTeamId: found.home.team?.id,
-    awayTeamId: found.away.team?.id
-  };
+
+  if(ev.cal.espnSlug){
+    const cached = SCORES_CACHE[`${ev.cal.espnSlug}|${dateKey}`];
+    if(cached && cached.status === 'ready'){
+      const found = findEspnMatchForEvent(ev, cached.events);
+      if(found){
+        const type = found.comp.status?.type;
+        if(st.state === 'en_vivo' || type?.completed){
+          return {
+            source: 'espn',
+            golesHome: found.home.score,
+            golesAway: found.away.score,
+            completed: !!type?.completed,
+            clockText: type?.shortDetail || type?.detail || type?.description || '',
+            eventId: found.eventId,
+            slug: ev.cal.espnSlug,
+            homeTeamId: found.home.team?.id,
+            awayTeamId: found.away.team?.id
+          };
+        }
+      }
+    }
+  }
+
+  // Respaldo: TheSportsDB (solo aplica a partidos ya finalizados por horario).
+  if(st.state === 'finalizado' && ev.cal.sportsDbId){
+    const cached = SPORTSDB_CACHE[`${ev.cal.sportsDbId}|${dateKey}`];
+    if(cached && cached.status === 'ready'){
+      const found = findSportsDbMatchForEvent(ev, cached.events);
+      if(found && found.strStatus === 'FT' && found.intHomeScore !== null && found.intHomeScore !== undefined){
+        return {
+          source: 'sportsdb',
+          golesHome: Number(found.intHomeScore),
+          golesAway: Number(found.intAwayScore),
+          completed: true,
+          clockText: 'Finalizado',
+          eventId: null, // TheSportsDB (plan gratis) no trae goleadores/tarjetas por este endpoint
+          homeTeamId: null,
+          awayTeamId: null
+        };
+      }
+    }
+  }
+  return null;
+}
+
+// Empareja un evento de Google Calendar con un partido de TheSportsDB
+// comparando palabras del nombre de cada equipo contra el título del evento.
+function findSportsDbMatchForEvent(ev, events){
+  if(!events || events.length === 0) return null;
+  const title = normalizeName(ev.title);
+  for(const e of events){
+    const homeWords = normalizeName(e.strHomeTeam).split(' ').filter(w => w.length > 3);
+    const awayWords = normalizeName(e.strAwayTeam).split(' ').filter(w => w.length > 3);
+    const homeMatch = homeWords.length ? homeWords.some(w => title.includes(w)) : false;
+    const awayMatch = awayWords.length ? awayWords.some(w => title.includes(w)) : false;
+    if(homeMatch && awayMatch) return e;
+  }
+  return null;
+}
+
+const SPORTSDB_CACHE = {}; // key: `${sportsDbId}|${dateKey}` -> {status, ts, events:[]}
+const SPORTSDB_BASE = 'https://www.thesportsdb.com/api/v1/json/123';
+
+async function fetchSportsDbDay(leagueId, dateKey){
+  const key = `${leagueId}|${dateKey}`;
+  const cached = SPORTSDB_CACHE[key];
+  if(cached && cached.status === 'loading') return cached;
+  if(cached && cached.status === 'ready') return cached; // día ya pasado, no cambia más
+  if(cached && cached.status === 'error' && (Date.now() - cached.ts) < CONFIG.LIVE_CACHE_TTL_MS) return cached;
+  SPORTSDB_CACHE[key] = { status: 'loading', ts: Date.now(), events: cached ? cached.events : [] };
+  try{
+    const url = `${SPORTSDB_BASE}/eventsday.php?d=${dateKey}&l=${leagueId}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error(`TheSportsDB HTTP ${res.status}`);
+    const data = await res.json();
+    SPORTSDB_CACHE[key] = { status: 'ready', ts: Date.now(), events: data.events || [] };
+  }catch(err){
+    console.warn('Error TheSportsDB', leagueId, dateKey, err);
+    SPORTSDB_CACHE[key] = { status: 'error', ts: Date.now(), events: [] };
+  }
+  return SPORTSDB_CACHE[key];
+}
+
+// Solo consulta TheSportsDB para partidos finalizados que ESPN todavía no resolvió
+// (evita gastar consultas en algo que ya está resuelto por la fuente principal).
+async function loadSportsDbFallbacks(){
+  const pending = new Map();
+  CACHE.events.forEach(ev => {
+    if(!ev.cal.sportsDbId) return;
+    const st = matchStatus(ev);
+    if(st.state !== 'finalizado') return;
+    const dateKey = dateKeyBogota(ev.startISO);
+
+    if(ev.cal.espnSlug){
+      const espnCache = SCORES_CACHE[`${ev.cal.espnSlug}|${dateKey}`];
+      if(espnCache && espnCache.status === 'ready'){
+        const found = findEspnMatchForEvent(ev, espnCache.events);
+        if(found && found.comp.status?.type?.completed) return; // ESPN ya lo resolvió
+      }
+    }
+
+    const key = `${ev.cal.sportsDbId}|${dateKey}`;
+    const cached = SPORTSDB_CACHE[key];
+    if(!cached || cached.status === 'error') pending.set(key, { leagueId: ev.cal.sportsDbId, dateKey });
+  });
+  if(pending.size === 0) return false;
+  await Promise.all([...pending.values()].map(p => fetchSportsDbDay(p.leagueId, p.dateKey)));
+  return true;
 }
 
 // Revisa qué partidos (en vivo o ya finalizados según el horario) todavía no tienen
@@ -692,7 +785,8 @@ async function loadEvents(){
     // y, para los que ya terminaron, también goleadores/tarjetas.
     const scoresUpdated = await loadScoreboardUpdates();
     const detailsUpdated = await loadMatchDetailsUpdates();
-    if(scoresUpdated || detailsUpdated) renderAll();
+    const fallbackUpdated = await loadSportsDbFallbacks();
+    if(scoresUpdated || detailsUpdated || fallbackUpdated) renderAll();
   }catch(err){
     console.error(err);
     statusLine.textContent = 'Error al cargar calendarios. Revisa la API key y los permisos.';
@@ -709,8 +803,8 @@ function tick(){
   }
   // Reintenta marcadores/detalle pendientes (respeta el TTL de caché, no dispara de más).
   // Los partidos en vivo se refrescan cada ~45s gracias a LIVE_CACHE_TTL_MS.
-  Promise.all([loadScoreboardUpdates(), loadMatchDetailsUpdates()])
-    .then(([a, b]) => { if(a || b) renderAll(); });
+  Promise.all([loadScoreboardUpdates(), loadMatchDetailsUpdates(), loadSportsDbFallbacks()])
+    .then(([a, b, c]) => { if(a || b || c) renderAll(); });
 }
 
 window.addEventListener('resize', renderAll);
