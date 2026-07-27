@@ -100,13 +100,14 @@
 
   /* ---------- Tarjeta de partido ---------- */
   .match{
-    position:relative; background:var(--card);
+    position:relative;
+    background: color-mix(in srgb, var(--comp-color, var(--primary)) 7%, white);
     border:1px solid var(--line); border-left:calc(3px * var(--s)) solid var(--comp-color, var(--primary));
     border-radius:var(--radius-sm);
     padding:calc(6px * var(--s)) calc(8px * var(--s));
     box-shadow:var(--shadow-sm);
   }
-  .match.finalizado{opacity:.92; background:#fafbfc;}
+  .match.finalizado{opacity:.92; background: color-mix(in srgb, var(--comp-color, var(--primary)) 4%, white);}
   .match .comp{
     font-size:calc(8.5px * var(--s)); letter-spacing:.4px; text-transform:uppercase;
     color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -259,7 +260,7 @@ const CALENDARS = [
   { id: 'c_4317288379f78b336a1509f4f6f678aad84d2b08c72797d268346ea2122beb79@group.calendar.google.com', label: 'Liga Femenina BetPlay Dimayor', color: '#b51a65', logo: 'https://lh3.googleusercontent.com/d/1GRGoELSTVM2sDydzsswzi6XvjCDxK84y', espnSlug: null, sportsDbId: null, highlightlyId: 606696 },
   { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#64748b', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU', espnSlug: null, sportsDbId: null, highlightlyId: null },
   { id: 'c_b9881758c97c62967ca1e1638d560af12815ed0262b6bf7d7afc2d910b7cf03a@group.calendar.google.com', label: 'CONMEBOL Libertadores', color: '#c9a227', logo: 'https://lh3.googleusercontent.com/d/1iRkeR307HOxDvVcV8u_IKMkZ3_b0GAye', espnSlug: 'conmebol.libertadores', sportsDbId: null, highlightlyId: null },
-  { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#c23b3b', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE', espnSlug: 'conmebol.sudamericana', sportsDbId: null, highlightlyId: null },
+  { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#00008C', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE', espnSlug: 'conmebol.sudamericana', sportsDbId: null, highlightlyId: null },
   { id: '4de747g9v5rqo0ohmj87j4sf1fg9m2c8@import.calendar.google.com', label: 'Copa Mundial de la FIFA 2026', color: '#2fb8a6', logo: 'https://lh3.googleusercontent.com/d/1Td-x8UWchJUcFPqIPhxfYJlWzpvF6t9u', espnSlug: null, sportsDbId: null, highlightlyId: null }
 ];
 
