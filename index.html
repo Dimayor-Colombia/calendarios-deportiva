@@ -237,7 +237,14 @@ const CONFIG = {
   SCORE_CACHE_TTL_MS: 10 * 60 * 1000,
   // Partidos EN VIVO se refrescan mucho más seguido (incluye medio tiempo,
   // entra en tiempo real mientras el partido está corriendo).
-  LIVE_CACHE_TTL_MS: 45 * 1000
+  LIVE_CACHE_TTL_MS: 45 * 1000,
+
+  // --- Highlightly (2do respaldo + única fuente para Liga Femenina) ---
+  // Plan gratis: 100 solicitudes/día. Por eso solo se usa para partidos YA
+  // finalizados (nunca para seguir un partido en vivo, eso lo cubre ESPN).
+  HIGHLIGHTLY_BASE: 'https://soccer.highlightly.net',
+  HIGHLIGHTLY_KEY: 'a6b66c69-8339-4d1c-9a4f-cb52ebf12cc8',
+  HIGHLIGHTLY_SEASON: 2026
 };
 
 const CALENDARS = [
@@ -245,15 +252,15 @@ const CALENDARS = [
   // Mientras espnSlug sea null, esa competencia sigue mostrando solo el badge "Fin" (sin marcador).
   // Para buscar/confirmar un slug nuevo: prueba
   //   https://site.api.espn.com/apis/site/v2/sports/soccer/<slug>/scoreboard
-  { id: 'c_74d60f90f8e2a5d566429af24fd4c5e4c6a083e5a62027cec34a5c362b8dd49a@group.calendar.google.com', label: 'Liga BetPlay Dimayor', color: '#f3cc23', logo: 'https://lh3.googleusercontent.com/d/1tVCRbR0BNTcSqzoDd0jgs_9dvrvYK2pX', espnSlug: 'col.1', sportsDbId: 4497 },
-  { id: 'c_b440f465efac86a96197d6c92dcdc371f00f55c22b201b5e4bdb446aa1d558e0@group.calendar.google.com', label: 'Torneo BetPlay Dimayor', color: '#6fb2e3', logo: 'https://lh3.googleusercontent.com/d/1t64NZwLCkCo4ofMZVYzhfcV8pSsVwCfv', espnSlug: 'col.2', sportsDbId: 4951 },
-  { id: 'c_f4e132b3db024af62da58634ae149e2baabbe282f113c0f7d9ddea1ffe67d42f@group.calendar.google.com', label: 'Copa BetPlay Dimayor', color: '#3bad4c', logo: 'https://lh3.googleusercontent.com/d/1TELaujxqcd_Q_I3HwUxriPuUuwOx2Wrl', espnSlug: 'col.copa', sportsDbId: null },
-  { id: 'c_d95f7411f89d37a29d9135d9b963cb157e2c0e8ca5971cfe34320415fa6d9254@group.calendar.google.com', label: 'Superliga BetPlay Dimayor', color: '#062a63', logo: 'https://lh3.googleusercontent.com/d/1UJxk_10wBGXLNs5_gaVFI6xmUkT47uYq', espnSlug: 'col.superliga', sportsDbId: null },
-  { id: 'c_4317288379f78b336a1509f4f6f678aad84d2b08c72797d268346ea2122beb79@group.calendar.google.com', label: 'Liga Femenina BetPlay Dimayor', color: '#b51a65', logo: 'https://lh3.googleusercontent.com/d/1GRGoELSTVM2sDydzsswzi6XvjCDxK84y', espnSlug: null, sportsDbId: null },
-  { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#64748b', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU', espnSlug: null, sportsDbId: null },
-  { id: 'c_b9881758c97c62967ca1e1638d560af12815ed0262b6bf7d7afc2d910b7cf03a@group.calendar.google.com', label: 'CONMEBOL Libertadores', color: '#c9a227', logo: 'https://lh3.googleusercontent.com/d/1iRkeR307HOxDvVcV8u_IKMkZ3_b0GAye', espnSlug: 'conmebol.libertadores', sportsDbId: null },
-  { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#c23b3b', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE', espnSlug: 'conmebol.sudamericana', sportsDbId: null },
-  { id: '4de747g9v5rqo0ohmj87j4sf1fg9m2c8@import.calendar.google.com', label: 'Copa Mundial de la FIFA 2026', color: '#2fb8a6', logo: 'https://lh3.googleusercontent.com/d/1Td-x8UWchJUcFPqIPhxfYJlWzpvF6t9u', espnSlug: null, sportsDbId: null }
+  { id: 'c_74d60f90f8e2a5d566429af24fd4c5e4c6a083e5a62027cec34a5c362b8dd49a@group.calendar.google.com', label: 'Liga BetPlay Dimayor', color: '#f3cc23', logo: 'https://lh3.googleusercontent.com/d/1tVCRbR0BNTcSqzoDd0jgs_9dvrvYK2pX', espnSlug: 'col.1', sportsDbId: 4497, highlightlyId: 204173 },
+  { id: 'c_b440f465efac86a96197d6c92dcdc371f00f55c22b201b5e4bdb446aa1d558e0@group.calendar.google.com', label: 'Torneo BetPlay Dimayor', color: '#6fb2e3', logo: 'https://lh3.googleusercontent.com/d/1t64NZwLCkCo4ofMZVYzhfcV8pSsVwCfv', espnSlug: 'col.2', sportsDbId: 4951, highlightlyId: 205024 },
+  { id: 'c_f4e132b3db024af62da58634ae149e2baabbe282f113c0f7d9ddea1ffe67d42f@group.calendar.google.com', label: 'Copa BetPlay Dimayor', color: '#3bad4c', logo: 'https://lh3.googleusercontent.com/d/1TELaujxqcd_Q_I3HwUxriPuUuwOx2Wrl', espnSlug: 'col.copa', sportsDbId: null, highlightlyId: 205875 },
+  { id: 'c_d95f7411f89d37a29d9135d9b963cb157e2c0e8ca5971cfe34320415fa6d9254@group.calendar.google.com', label: 'Superliga BetPlay Dimayor', color: '#062a63', logo: 'https://lh3.googleusercontent.com/d/1UJxk_10wBGXLNs5_gaVFI6xmUkT47uYq', espnSlug: 'col.superliga', sportsDbId: null, highlightlyId: 607547 },
+  { id: 'c_4317288379f78b336a1509f4f6f678aad84d2b08c72797d268346ea2122beb79@group.calendar.google.com', label: 'Liga Femenina BetPlay Dimayor', color: '#b51a65', logo: 'https://lh3.googleusercontent.com/d/1GRGoELSTVM2sDydzsswzi6XvjCDxK84y', espnSlug: null, sportsDbId: null, highlightlyId: 606696 },
+  { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#64748b', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU', espnSlug: null, sportsDbId: null, highlightlyId: null },
+  { id: 'c_b9881758c97c62967ca1e1638d560af12815ed0262b6bf7d7afc2d910b7cf03a@group.calendar.google.com', label: 'CONMEBOL Libertadores', color: '#c9a227', logo: 'https://lh3.googleusercontent.com/d/1iRkeR307HOxDvVcV8u_IKMkZ3_b0GAye', espnSlug: 'conmebol.libertadores', sportsDbId: null, highlightlyId: null },
+  { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#c23b3b', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE', espnSlug: 'conmebol.sudamericana', sportsDbId: null, highlightlyId: null },
+  { id: '4de747g9v5rqo0ohmj87j4sf1fg9m2c8@import.calendar.google.com', label: 'Copa Mundial de la FIFA 2026', color: '#2fb8a6', logo: 'https://lh3.googleusercontent.com/d/1Td-x8UWchJUcFPqIPhxfYJlWzpvF6t9u', espnSlug: null, sportsDbId: null, highlightlyId: null }
 ];
 
 /* =========================================================
@@ -446,7 +453,7 @@ function getMatchInfo(ev){
     }
   }
 
-  // Respaldo: TheSportsDB (solo aplica a partidos ya finalizados por horario).
+  // Respaldo 2: TheSportsDB (solo aplica a partidos ya finalizados por horario).
   if(st.state === 'finalizado' && ev.cal.sportsDbId){
     const cached = SPORTSDB_CACHE[`${ev.cal.sportsDbId}|${dateKey}`];
     if(cached && cached.status === 'ready'){
@@ -465,7 +472,117 @@ function getMatchInfo(ev){
       }
     }
   }
+
+  // Respaldo 3: Highlightly (solo finalizados; también es la única fuente para Liga Femenina).
+  if(st.state === 'finalizado' && ev.cal.highlightlyId){
+    const cached = HIGHLIGHTLY_CACHE[`${ev.cal.highlightlyId}|${dateKey}`];
+    if(cached && cached.status === 'ready'){
+      const found = findHighlightlyMatchForEvent(ev, cached.matches);
+      if(found && /finish/i.test(found.state?.description || '')){
+        const parts = (found.state?.score?.current || '').split('-').map(s => Number(s.trim()));
+        if(parts.length === 2 && !Number.isNaN(parts[0]) && !Number.isNaN(parts[1])){
+          return {
+            source: 'highlightly',
+            golesHome: parts[0],
+            golesAway: parts[1],
+            completed: true,
+            clockText: 'Finalizado',
+            eventId: null,
+            homeTeamId: null,
+            awayTeamId: null
+          };
+        }
+      }
+    }
+  }
   return null;
+}
+
+// Empareja un evento de Google Calendar con un partido de Highlightly
+// comparando palabras del nombre de cada equipo contra el título del evento.
+function findHighlightlyMatchForEvent(ev, matches){
+  if(!matches || matches.length === 0) return null;
+  const title = normalizeName(ev.title);
+  for(const m of matches){
+    const homeWords = normalizeName(m.homeTeam?.name).split(' ').filter(w => w.length > 3);
+    const awayWords = normalizeName(m.awayTeam?.name).split(' ').filter(w => w.length > 3);
+    const homeMatch = homeWords.length ? homeWords.some(w => title.includes(w)) : false;
+    const awayMatch = awayWords.length ? awayWords.some(w => title.includes(w)) : false;
+    if(homeMatch && awayMatch) return m;
+  }
+  return null;
+}
+
+const HIGHLIGHTLY_CACHE = {}; // key: `${leagueId}|${dateKey}` -> {status, ts, matches:[]}
+
+async function fetchHighlightlyDay(leagueId, dateKey){
+  const key = `${leagueId}|${dateKey}`;
+  const cached = HIGHLIGHTLY_CACHE[key];
+  if(cached && cached.status === 'loading') return cached;
+  if(cached && cached.status === 'ready') return cached; // día ya pasado, no cambia más
+  if(cached && cached.status === 'error' && (Date.now() - cached.ts) < CONFIG.LIVE_CACHE_TTL_MS) return cached;
+  HIGHLIGHTLY_CACHE[key] = { status: 'loading', ts: Date.now(), matches: cached ? cached.matches : [] };
+  try{
+    // Mismo cuidado que con TheSportsDB: pedimos ayer+hoy+mañana por si acaso
+    // hay un desfase de zona horaria en cómo Highlightly indexa la fecha.
+    const days = [ymdDashShift(dateKey, -1), dateKey, ymdDashShift(dateKey, 1)];
+    const headers = { 'x-rapidapi-key': CONFIG.HIGHLIGHTLY_KEY };
+    const results = await Promise.all(days.map(d =>
+      fetch(`${CONFIG.HIGHLIGHTLY_BASE}/matches?leagueId=${leagueId}&season=${CONFIG.HIGHLIGHTLY_SEASON}&date=${d}`, { headers })
+        .then(r => r.ok ? r.json() : { data: [] })
+    ));
+    const merged = [];
+    const seen = new Set();
+    results.forEach(data => (data.data || []).forEach(m => {
+      if(m.id && !seen.has(m.id)){ seen.add(m.id); merged.push(m); }
+    }));
+    HIGHLIGHTLY_CACHE[key] = { status: 'ready', ts: Date.now(), matches: merged };
+  }catch(err){
+    console.warn('Error Highlightly', leagueId, dateKey, err);
+    HIGHLIGHTLY_CACHE[key] = { status: 'error', ts: Date.now(), matches: [] };
+  }
+  return HIGHLIGHTLY_CACHE[key];
+}
+
+// Solo consulta Highlightly para partidos finalizados que ni ESPN ni TheSportsDB
+// resolvieron (es el último recurso, para cuidar el límite de 100/día del plan gratis).
+async function loadHighlightlyFallbacks(){
+  const pending = new Map();
+  CACHE.events.forEach(ev => {
+    if(!ev.cal.highlightlyId) return;
+    const st = matchStatus(ev);
+    if(st.state !== 'finalizado') return;
+    if(getMatchInfoFromEspnOrSportsDbOnly(ev)) return; // ya resuelto por una fuente anterior
+    const dateKey = dateKeyBogota(ev.startISO);
+    const key = `${ev.cal.highlightlyId}|${dateKey}`;
+    const cached = HIGHLIGHTLY_CACHE[key];
+    if(!cached || cached.status === 'error') pending.set(key, { leagueId: ev.cal.highlightlyId, dateKey });
+  });
+  if(pending.size === 0) return false;
+  await Promise.all([...pending.values()].map(p => fetchHighlightlyDay(p.leagueId, p.dateKey)));
+  return true;
+}
+
+// Repite solo la parte de ESPN + TheSportsDB de getMatchInfo, para saber si ya
+// hay resultado sin tener que llamar (ni gastar cupo de) Highlightly de más.
+function getMatchInfoFromEspnOrSportsDbOnly(ev){
+  const st = matchStatus(ev);
+  const dateKey = dateKeyBogota(ev.startISO);
+  if(ev.cal.espnSlug){
+    const cached = SCORES_CACHE[`${ev.cal.espnSlug}|${dateKey}`];
+    if(cached && cached.status === 'ready'){
+      const found = findEspnMatchForEvent(ev, cached.events);
+      if(found && found.comp.status?.type?.completed) return true;
+    }
+  }
+  if(st.state === 'finalizado' && ev.cal.sportsDbId){
+    const cached = SPORTSDB_CACHE[`${ev.cal.sportsDbId}|${dateKey}`];
+    if(cached && cached.status === 'ready'){
+      const found = findSportsDbMatchForEvent(ev, cached.events);
+      if(found && found.strStatus === 'FT') return true;
+    }
+  }
+  return false;
 }
 
 // Empareja un evento de Google Calendar con un partido de TheSportsDB
@@ -801,7 +918,8 @@ async function loadEvents(){
     const scoresUpdated = await loadScoreboardUpdates();
     const detailsUpdated = await loadMatchDetailsUpdates();
     const fallbackUpdated = await loadSportsDbFallbacks();
-    if(scoresUpdated || detailsUpdated || fallbackUpdated) renderAll();
+    const highlightlyUpdated = await loadHighlightlyFallbacks();
+    if(scoresUpdated || detailsUpdated || fallbackUpdated || highlightlyUpdated) renderAll();
   }catch(err){
     console.error(err);
     statusLine.textContent = 'Error al cargar calendarios. Revisa la API key y los permisos.';
@@ -818,8 +936,8 @@ function tick(){
   }
   // Reintenta marcadores/detalle pendientes (respeta el TTL de caché, no dispara de más).
   // Los partidos en vivo se refrescan cada ~45s gracias a LIVE_CACHE_TTL_MS.
-  Promise.all([loadScoreboardUpdates(), loadMatchDetailsUpdates(), loadSportsDbFallbacks()])
-    .then(([a, b, c]) => { if(a || b || c) renderAll(); });
+  Promise.all([loadScoreboardUpdates(), loadMatchDetailsUpdates(), loadSportsDbFallbacks(), loadHighlightlyFallbacks()])
+    .then(([a, b, c, d]) => { if(a || b || c || d) renderAll(); });
 }
 
 window.addEventListener('resize', renderAll);
