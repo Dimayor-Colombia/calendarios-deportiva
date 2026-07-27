@@ -494,16 +494,31 @@ async function fetchSportsDbDay(leagueId, dateKey){
   if(cached && cached.status === 'error' && (Date.now() - cached.ts) < CONFIG.LIVE_CACHE_TTL_MS) return cached;
   SPORTSDB_CACHE[key] = { status: 'loading', ts: Date.now(), events: cached ? cached.events : [] };
   try{
-    const url = `${SPORTSDB_BASE}/eventsday.php?d=${dateKey}&l=${leagueId}`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error(`TheSportsDB HTTP ${res.status}`);
-    const data = await res.json();
-    SPORTSDB_CACHE[key] = { status: 'ready', ts: Date.now(), events: data.events || [] };
+    // TheSportsDB guarda "dateEvent" según su hora UTC sin convertir a hora local del
+    // partido: un partido de noche en Bogotá puede quedar archivado bajo el día siguiente
+    // en UTC. Para no perderlo, consultamos ayer + hoy + mañana y juntamos todo.
+    const days = [ymdDashShift(dateKey, -1), dateKey, ymdDashShift(dateKey, 1)];
+    const results = await Promise.all(days.map(d =>
+      fetch(`${SPORTSDB_BASE}/eventsday.php?d=${d}&l=${leagueId}`).then(r => r.ok ? r.json() : { events: [] })
+    ));
+    const merged = [];
+    const seen = new Set();
+    results.forEach(data => (data.events || []).forEach(e => {
+      if(e.idEvent && !seen.has(e.idEvent)){ seen.add(e.idEvent); merged.push(e); }
+    }));
+    SPORTSDB_CACHE[key] = { status: 'ready', ts: Date.now(), events: merged };
   }catch(err){
     console.warn('Error TheSportsDB', leagueId, dateKey, err);
     SPORTSDB_CACHE[key] = { status: 'error', ts: Date.now(), events: [] };
   }
   return SPORTSDB_CACHE[key];
+}
+
+// Suma/resta días a una fecha 'YYYY-MM-DD' y devuelve el resultado en el mismo formato.
+function ymdDashShift(dateKey, days){
+  const d = new Date(dateKey + 'T12:00:00Z'); // mediodía UTC evita saltos de día
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 // Solo consulta TheSportsDB para partidos finalizados que ESPN todavía no resolvió
