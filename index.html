@@ -101,13 +101,13 @@
   /* ---------- Tarjeta de partido ---------- */
   .match{
     position:relative;
-    background: color-mix(in srgb, var(--comp-color, var(--primary)) 7%, white);
+    background: var(--comp-bg, var(--card));
     border:1px solid var(--line); border-left:calc(3px * var(--s)) solid var(--comp-color, var(--primary));
     border-radius:var(--radius-sm);
     padding:calc(6px * var(--s)) calc(8px * var(--s));
     box-shadow:var(--shadow-sm);
   }
-  .match.finalizado{opacity:.92; background: color-mix(in srgb, var(--comp-color, var(--primary)) 4%, white);}
+  .match.finalizado{opacity:.95; background: var(--comp-bg-soft, var(--card));}
   .match .comp{
     font-size:calc(8.5px * var(--s)); letter-spacing:.4px; text-transform:uppercase;
     color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -189,6 +189,39 @@
     .dayHead .wd{font-size:10px;}
     .brand .titles .t2{display:none;}
   }
+
+  /* ---------- Spotlight: TODOS los partidos de HOY, pantalla completa ---------- */
+  .spotlight-overlay{
+    position:fixed; inset:0; z-index:50;
+    display:flex;
+    background: var(--bg);
+    opacity:0; visibility:hidden; pointer-events:none;
+    transition: opacity .7s ease, visibility .7s ease;
+  }
+  .spotlight-overlay.visible{
+    opacity:1; visibility:visible; pointer-events:auto;
+  }
+  .grid{ transition: opacity .7s ease; }
+  .grid.dimmed{ opacity:0; }
+  .spotlight-today{
+    width:100%; height:100%; box-sizing:border-box;
+    padding:18px 40px 30px; display:flex; flex-direction:column;
+  }
+  .spotlight-today-topbar{
+    flex:0 0 auto; display:flex; align-items:center; justify-content:center; gap:14px;
+    padding:10px 22px; margin:-18px -40px 18px; /* se extiende de borde a borde, como el header */
+    background:linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 60%, var(--primary-light) 100%);
+    box-shadow:var(--shadow);
+  }
+  .spotlight-today-logo{ height:34px; }
+  .spotlight-today-title{ font-size:22px; font-weight:700; color:#fff; letter-spacing:.3px; }
+  .spotlight-today-grid{
+    --s:1.25;
+    flex:1; min-height:0; overflow:hidden;
+    display:flex; flex-wrap:wrap; gap:16px;
+    align-content:flex-start; justify-content:center;
+  }
+  .spotlight-today-grid .match{ width:330px; flex:0 0 330px; }
 </style>
 </head>
 <body>
@@ -207,6 +240,8 @@
 
   <div class="grid" id="grid"></div>
 
+  <div class="spotlight-overlay" id="spotlight"></div>
+
   <footer>
     <span id="statusLine">Iniciando…</span>
     <span class="onlinePill"><span class="liveDot"></span>En línea</span>
@@ -221,12 +256,12 @@ const CONFIG = {
   API_KEY: 'AIzaSyC2oQ0Y7RYZX_lgkgPIchochLltCnN78nc',
   TIMEZONE: 'America/Bogota',
   DAYS_AHEAD: 7,
-  DAYS_BEFORE: 1, // cuántos días atrás mostrar (corre la ventana, sigue en 7 columnas totales)
   REFRESH_EVENTS_MS: 3 * 60 * 1000,
   TICK_MS: 20 * 1000,
   MATCH_DURATION_MIN: 130,
   RELOAD_AT_MIDNIGHT: true,
   MIN_SCALE: 0.55,
+  SPOTLIGHT_SECONDS: 20, // cuánto dura cada vista antes de alternar (calendario ↔ partidos de hoy)
 
   // --- ESPN (marcador final) ---
   // API interna de ESPN, sin key, sin registro. NO es oficial/documentada:
@@ -253,15 +288,17 @@ const CALENDARS = [
   // Mientras espnSlug sea null, esa competencia sigue mostrando solo el badge "Fin" (sin marcador).
   // Para buscar/confirmar un slug nuevo: prueba
   //   https://site.api.espn.com/apis/site/v2/sports/soccer/<slug>/scoreboard
-  { id: 'c_74d60f90f8e2a5d566429af24fd4c5e4c6a083e5a62027cec34a5c362b8dd49a@group.calendar.google.com', label: 'Liga BetPlay Dimayor', color: '#f3cc23', logo: 'https://lh3.googleusercontent.com/d/1tVCRbR0BNTcSqzoDd0jgs_9dvrvYK2pX', espnSlug: 'col.1', sportsDbId: 4497, highlightlyId: 204173 },
-  { id: 'c_b440f465efac86a96197d6c92dcdc371f00f55c22b201b5e4bdb446aa1d558e0@group.calendar.google.com', label: 'Torneo BetPlay Dimayor', color: '#6fb2e3', logo: 'https://lh3.googleusercontent.com/d/1t64NZwLCkCo4ofMZVYzhfcV8pSsVwCfv', espnSlug: 'col.2', sportsDbId: 4951, highlightlyId: 205024 },
-  { id: 'c_f4e132b3db024af62da58634ae149e2baabbe282f113c0f7d9ddea1ffe67d42f@group.calendar.google.com', label: 'Copa BetPlay Dimayor', color: '#3bad4c', logo: 'https://lh3.googleusercontent.com/d/1TELaujxqcd_Q_I3HwUxriPuUuwOx2Wrl', espnSlug: 'col.copa', sportsDbId: null, highlightlyId: 205875 },
-  { id: 'c_d95f7411f89d37a29d9135d9b963cb157e2c0e8ca5971cfe34320415fa6d9254@group.calendar.google.com', label: 'Superliga BetPlay Dimayor', color: '#062a63', logo: 'https://lh3.googleusercontent.com/d/1UJxk_10wBGXLNs5_gaVFI6xmUkT47uYq', espnSlug: 'col.superliga', sportsDbId: null, highlightlyId: 607547 },
-  { id: 'c_4317288379f78b336a1509f4f6f678aad84d2b08c72797d268346ea2122beb79@group.calendar.google.com', label: 'Liga Femenina BetPlay Dimayor', color: '#b51a65', logo: 'https://lh3.googleusercontent.com/d/1GRGoELSTVM2sDydzsswzi6XvjCDxK84y', espnSlug: null, sportsDbId: null, highlightlyId: 606696 },
-  { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#64748b', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU', espnSlug: null, sportsDbId: null, highlightlyId: null },
-  { id: 'c_b9881758c97c62967ca1e1638d560af12815ed0262b6bf7d7afc2d910b7cf03a@group.calendar.google.com', label: 'CONMEBOL Libertadores', color: '#c9a227', logo: 'https://lh3.googleusercontent.com/d/1iRkeR307HOxDvVcV8u_IKMkZ3_b0GAye', espnSlug: 'conmebol.libertadores', sportsDbId: null, highlightlyId: null },
-  { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#00008C', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE', espnSlug: 'conmebol.sudamericana', sportsDbId: null, highlightlyId: null },
-  { id: '4de747g9v5rqo0ohmj87j4sf1fg9m2c8@import.calendar.google.com', label: 'Copa Mundial de la FIFA 2026', color: '#2fb8a6', logo: 'https://lh3.googleusercontent.com/d/1Td-x8UWchJUcFPqIPhxfYJlWzpvF6t9u', espnSlug: null, sportsDbId: null, highlightlyId: null }
+  // bgColor: tinte claro fijo de fondo (calculado a partir de "color"), en vez de
+  // color-mix() para que se vea bien también en navegadores más viejos (Smart TV).
+  { id: 'c_74d60f90f8e2a5d566429af24fd4c5e4c6a083e5a62027cec34a5c362b8dd49a@group.calendar.google.com', label: 'Liga BetPlay Dimayor', color: '#f3cc23', bgColor: '#fdf5d3', bgColorSoft: '#fef9e5', logo: 'https://lh3.googleusercontent.com/d/1tVCRbR0BNTcSqzoDd0jgs_9dvrvYK2pX', espnSlug: 'col.1', sportsDbId: 4497, highlightlyId: 204173 },
+  { id: 'c_b440f465efac86a96197d6c92dcdc371f00f55c22b201b5e4bdb446aa1d558e0@group.calendar.google.com', label: 'Torneo BetPlay Dimayor', color: '#6fb2e3', bgColor: '#e2f0f9', bgColorSoft: '#eef6fc', logo: 'https://lh3.googleusercontent.com/d/1t64NZwLCkCo4ofMZVYzhfcV8pSsVwCfv', espnSlug: 'col.2', sportsDbId: 4951, highlightlyId: 205024 },
+  { id: 'c_f4e132b3db024af62da58634ae149e2baabbe282f113c0f7d9ddea1ffe67d42f@group.calendar.google.com', label: 'Copa BetPlay Dimayor', color: '#3bad4c', bgColor: '#d8efdb', bgColorSoft: '#e7f5ea', logo: 'https://lh3.googleusercontent.com/d/1TELaujxqcd_Q_I3HwUxriPuUuwOx2Wrl', espnSlug: 'col.copa', sportsDbId: null, highlightlyId: 205875 },
+  { id: 'c_d95f7411f89d37a29d9135d9b963cb157e2c0e8ca5971cfe34320415fa6d9254@group.calendar.google.com', label: 'Superliga BetPlay Dimayor', color: '#062a63', bgColor: '#cdd4e0', bgColorSoft: '#e1e5ec', logo: 'https://lh3.googleusercontent.com/d/1UJxk_10wBGXLNs5_gaVFI6xmUkT47uYq', espnSlug: 'col.superliga', sportsDbId: null, highlightlyId: 607547 },
+  { id: 'c_4317288379f78b336a1509f4f6f678aad84d2b08c72797d268346ea2122beb79@group.calendar.google.com', label: 'Liga Femenina BetPlay Dimayor', color: '#b51a65', bgColor: '#f0d1e0', bgColorSoft: '#f6e4ed', logo: 'https://lh3.googleusercontent.com/d/1GRGoELSTVM2sDydzsswzi6XvjCDxK84y', espnSlug: null, sportsDbId: null, highlightlyId: 606696 },
+  { id: 'c_c51065fa3d2f6c30997d0480ee6168233541fa6d80f79e989c70649a83655fad@group.calendar.google.com', label: 'Otras competiciones', color: '#64748b', bgColor: '#e0e3e8', bgColorSoft: '#eceef1', logo: 'https://lh3.googleusercontent.com/d/1nAOaOA7FCdprzPq6LBwuqTEHVEAQpRzU', espnSlug: null, sportsDbId: null, highlightlyId: null },
+  { id: 'c_b9881758c97c62967ca1e1638d560af12815ed0262b6bf7d7afc2d910b7cf03a@group.calendar.google.com', label: 'CONMEBOL Libertadores', color: '#c9a227', bgColor: '#f4ecd4', bgColorSoft: '#f9f4e5', logo: 'https://lh3.googleusercontent.com/d/1iRkeR307HOxDvVcV8u_IKMkZ3_b0GAye', espnSlug: 'conmebol.libertadores', sportsDbId: null, highlightlyId: null },
+  { id: 'c_353a23183eccc44a15047f4aa971ca96526a53f16170a1b69e0357d2c324c10c@group.calendar.google.com', label: 'CONMEBOL Sudamericana', color: '#c23b3b', bgColor: '#f3d8d8', bgColorSoft: '#f8e7e7', logo: 'https://lh3.googleusercontent.com/d/1rJQeeoIs9SMrNyuLhVvJCFOtgR9Hq5FE', espnSlug: 'conmebol.sudamericana', sportsDbId: null, highlightlyId: null },
+  { id: '4de747g9v5rqo0ohmj87j4sf1fg9m2c8@import.calendar.google.com', label: 'Copa Mundial de la FIFA 2026', color: '#2fb8a6', bgColor: '#d5f1ed', bgColorSoft: '#e6f6f4', logo: 'https://lh3.googleusercontent.com/d/1Td-x8UWchJUcFPqIPhxfYJlWzpvF6t9u', espnSlug: null, sportsDbId: null, highlightlyId: null }
 ];
 
 /* =========================================================
@@ -289,7 +326,8 @@ function fmtDayShort(d){
 function buildDayList(){
   const now = bogotaNow();
   const days = [];
-  for(let i = -CONFIG.DAYS_BEFORE; i < CONFIG.DAYS_AHEAD - CONFIG.DAYS_BEFORE; i++){
+  // Arranca en MAÑANA (i=1): el día de hoy ya se muestra completo en "Partidos de hoy".
+  for(let i = 1; i <= CONFIG.DAYS_AHEAD; i++){
     const d = new Date(now);
     d.setDate(d.getDate()+i);
     days.push({
@@ -332,8 +370,8 @@ async function fetchCalendarEvents(cal, timeMinISO, timeMaxISO){
 }
 async function fetchAllEvents(){
   const now = bogotaNow();
-  const timeMin = new Date(now); timeMin.setDate(timeMin.getDate() - CONFIG.DAYS_BEFORE); timeMin.setHours(0,0,0,0);
-  const timeMax = new Date(now); timeMax.setDate(timeMax.getDate() + (CONFIG.DAYS_AHEAD - CONFIG.DAYS_BEFORE - 1)); timeMax.setHours(23,59,59,999);
+  const timeMin = new Date(now); timeMin.setHours(0,0,0,0); // incluye HOY, lo necesita el spotlight
+  const timeMax = new Date(now); timeMax.setDate(timeMax.getDate() + CONFIG.DAYS_AHEAD); timeMax.setHours(23,59,59,999);
   const results = await Promise.allSettled(
     CALENDARS.map(cal => fetchCalendarEvents(cal, timeMin.toISOString(), timeMax.toISOString()))
   );
@@ -810,7 +848,7 @@ function matchCardHTML(ev){
   const progressHTML = showEstimatedProgress
     ? `<div class="progress"><i style="width:${st.pct.toFixed(0)}%"></i></div>` : '';
 
-  return `<div class="match ${st.state === 'finalizado' ? 'finalizado':''}" style="--comp-color:${ev.cal.color}">
+  return `<div class="match ${st.state === 'finalizado' ? 'finalizado':''}" style="--comp-color:${ev.cal.color}; --comp-bg:${ev.cal.bgColor}; --comp-bg-soft:${ev.cal.bgColorSoft};">
     <div class="comp"><img src="${ev.cal.logo}" alt="" onerror="this.style.display='none'">${ev.cal.label}</div>
     <div class="title">${ev.title}</div>
     ${ev.location ? `<div class="venue">📍 ${ev.location}</div>` : ''}
@@ -890,9 +928,56 @@ function renderClock(){
     `${WD_NAMES[weekdayIndexBogota(now)]} ${fmtDayShort(now)}`;
 }
 
+/* =========================================================
+   SPOTLIGHT: TODOS los partidos de HOY, alternando con el calendario
+   ========================================================= */
+let spotlightVisible = false;
+
+function todaysEvents(){
+  const todayKey = dateKeyBogota(bogotaNow());
+  return CACHE.events
+    .filter(e => dateKeyBogota(e.startISO) === todayKey)
+    .sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
+}
+
+function renderSpotlight(){
+  const el = document.getElementById('spotlight');
+  if(!el) return;
+  const events = todaysEvents();
+  if(events.length === 0){ el.innerHTML = ''; return; }
+  const now = bogotaNow();
+  el.innerHTML = `<div class="spotlight-today">
+      <div class="spotlight-today-topbar">
+        <img class="spotlight-today-logo" src="https://lh3.googleusercontent.com/d/1l4mdgdoIJxuPBRY8VDhhC-AJQW6vgdWr" alt="DIMAYOR">
+        <div class="spotlight-today-title">Partidos de hoy · ${WD_NAMES[weekdayIndexBogota(now)]} ${fmtDayShort(now)}</div>
+      </div>
+      <div class="spotlight-today-grid">${events.map(ev => matchCardHTML(ev)).join('')}</div>
+    </div>`;
+}
+
+// Alterna entre el calendario de 7 días y la pantalla con todos los partidos de hoy,
+// con una transición de opacidad suave (crossfade) entre ambas.
+function toggleSpotlightVisibility(){
+  spotlightVisible = !spotlightVisible;
+  const el = document.getElementById('spotlight');
+  const grid = document.getElementById('grid');
+  if(!el || !grid) return;
+  if(spotlightVisible){
+    const events = todaysEvents();
+    if(events.length === 0){ spotlightVisible = false; return; } // nada que mostrar hoy, se queda en el calendario
+    renderSpotlight();
+    el.classList.add('visible');
+    grid.classList.add('dimmed');
+  } else {
+    el.classList.remove('visible');
+    grid.classList.remove('dimmed');
+  }
+}
+
 function renderAll(){
   const days = buildDayList();
   renderGrid(days);
+  if(spotlightVisible) renderSpotlight(); // refresca datos en vivo mientras está mostrándose
   const keys = new Set(days.map(d => d.key));
   return CACHE.events.filter(e => keys.has(dateKeyBogota(e.startISO))).length;
 }
@@ -947,6 +1032,7 @@ loadEvents();
 renderClock();
 setInterval(tick, CONFIG.TICK_MS);
 setInterval(loadEvents, CONFIG.REFRESH_EVENTS_MS);
+setInterval(toggleSpotlightVisibility, CONFIG.SPOTLIGHT_SECONDS * 1000);
 </script>
 </body>
 </html>
