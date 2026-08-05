@@ -262,7 +262,7 @@ const CONFIG = {
   MATCH_DURATION_MIN: 130,
   RELOAD_AT_MIDNIGHT: true,
   MIN_SCALE: 0.55,
-  SPOTLIGHT_SECONDS: 20, // cuánto dura cada vista antes de alternar (calendario ↔ partidos de hoy)
+  SPOTLIGHT_SECONDS: 20, // valor de respaldo, ya no se usa directo (ver SPOTLIGHT_DURATIONS)
 
   // --- ESPN (marcador final) ---
   // API interna de ESPN, sin key, sin registro. NO es oficial/documentada:
@@ -376,7 +376,7 @@ async function fetchCalendarEvents(cal, timeMinISO, timeMaxISO){
 }
 async function fetchAllEvents(){
   const now = bogotaNow();
-  const timeMin = new Date(now); timeMin.setHours(0,0,0,0); // incluye HOY, lo necesita el spotlight
+  const timeMin = new Date(now); timeMin.setDate(timeMin.getDate() - 1); timeMin.setHours(0,0,0,0); // incluye AYER (para la vista) y HOY (para el spotlight)
   const timeMax = new Date(now); timeMax.setDate(timeMax.getDate() + CONFIG.DAYS_AHEAD); timeMax.setHours(23,59,59,999);
   const results = await Promise.allSettled(
     CALENDARS.map(cal => fetchCalendarEvents(cal, timeMin.toISOString(), timeMax.toISOString()))
@@ -1122,6 +1122,7 @@ function renderClock(){
    SPOTLIGHT: TODOS los partidos de HOY y de AYER, rotando con el calendario
    ========================================================= */
 const SPOTLIGHT_VIEWS = ['grid', 'today', 'grid', 'yesterday'];
+const SPOTLIGHT_DURATIONS = { grid: 30, today: 8, yesterday: 8 }; // segundos que dura cada vista
 let spotlightViewIndex = 0;
 
 function todaysEvents(){
@@ -1165,9 +1166,21 @@ function renderSpotlightYesterday(){
 
 // Rota entre el calendario de 7 días, los partidos de hoy y los de ayer,
 // con una transición de opacidad suave (crossfade) entre cada una.
+let spotlightTimer = null;
+
 function rotateSpotlightView(){
   spotlightViewIndex = (spotlightViewIndex + 1) % SPOTLIGHT_VIEWS.length;
   applySpotlightView();
+  scheduleNextSpotlightRotation();
+}
+
+// Cada vista dura un tiempo distinto (ver SPOTLIGHT_DURATIONS), así que en vez de un
+// intervalo fijo, se reprograma un temporizador nuevo según la vista que quedó activa.
+function scheduleNextSpotlightRotation(){
+  if(spotlightTimer) clearTimeout(spotlightTimer);
+  const view = SPOTLIGHT_VIEWS[spotlightViewIndex];
+  const seconds = SPOTLIGHT_DURATIONS[view] ?? CONFIG.SPOTLIGHT_SECONDS;
+  spotlightTimer = setTimeout(rotateSpotlightView, seconds * 1000);
 }
 
 function applySpotlightView(){
@@ -1261,7 +1274,7 @@ loadEvents();
 renderClock();
 setInterval(tick, CONFIG.TICK_MS);
 setInterval(loadEvents, CONFIG.REFRESH_EVENTS_MS);
-setInterval(rotateSpotlightView, CONFIG.SPOTLIGHT_SECONDS * 1000);
+scheduleNextSpotlightRotation();
 </script>
 </body>
 </html>
