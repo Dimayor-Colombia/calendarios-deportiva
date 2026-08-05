@@ -241,6 +241,7 @@
   <div class="grid" id="grid"></div>
 
   <div class="spotlight-overlay" id="spotlight"></div>
+  <div class="spotlight-overlay" id="spotlightYesterday"></div>
 
   <footer>
     <span id="statusLine">Iniciando…</span>
@@ -1118,9 +1119,10 @@ function renderClock(){
 }
 
 /* =========================================================
-   SPOTLIGHT: TODOS los partidos de HOY, alternando con el calendario
+   SPOTLIGHT: TODOS los partidos de HOY y de AYER, rotando con el calendario
    ========================================================= */
-let spotlightVisible = false;
+const SPOTLIGHT_VIEWS = ['grid', 'today', 'yesterday'];
+let spotlightViewIndex = 0;
 
 function todaysEvents(){
   const todayKey = dateKeyBogota(bogotaNow());
@@ -1129,44 +1131,80 @@ function todaysEvents(){
     .sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
 }
 
-function renderSpotlight(){
-  const el = document.getElementById('spotlight');
+function yesterdaysEvents(){
+  const y = new Date(bogotaNow());
+  y.setDate(y.getDate() - 1);
+  const yesterdayKey = dateKeyBogota(y);
+  return CACHE.events
+    .filter(e => dateKeyBogota(e.startISO) === yesterdayKey)
+    .sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
+}
+
+function renderDayView(elId, events, titlePrefix, dateForLabel){
+  const el = document.getElementById(elId);
   if(!el) return;
-  const events = todaysEvents();
   if(events.length === 0){ el.innerHTML = ''; return; }
-  const now = bogotaNow();
   el.innerHTML = `<div class="spotlight-today">
       <div class="spotlight-today-topbar">
         <img class="spotlight-today-logo" src="https://lh3.googleusercontent.com/d/1l4mdgdoIJxuPBRY8VDhhC-AJQW6vgdWr" alt="DIMAYOR">
-        <div class="spotlight-today-title">Partidos de hoy · ${WD_NAMES[weekdayIndexBogota(now)]} ${fmtDayShort(now)}</div>
+        <div class="spotlight-today-title">${titlePrefix} · ${WD_NAMES[weekdayIndexBogota(dateForLabel)]} ${fmtDayShort(dateForLabel)}</div>
       </div>
       <div class="spotlight-today-grid">${events.map(ev => matchCardHTML(ev)).join('')}</div>
     </div>`;
 }
 
-// Alterna entre el calendario de 7 días y la pantalla con todos los partidos de hoy,
-// con una transición de opacidad suave (crossfade) entre ambas.
-function toggleSpotlightVisibility(){
-  spotlightVisible = !spotlightVisible;
-  const el = document.getElementById('spotlight');
+function renderSpotlight(){
+  renderDayView('spotlight', todaysEvents(), 'Partidos de hoy', bogotaNow());
+}
+
+function renderSpotlightYesterday(){
+  const y = new Date(bogotaNow());
+  y.setDate(y.getDate() - 1);
+  renderDayView('spotlightYesterday', yesterdaysEvents(), 'Partidos de ayer', y);
+}
+
+// Rota entre el calendario de 7 días, los partidos de hoy y los de ayer,
+// con una transición de opacidad suave (crossfade) entre cada una.
+function rotateSpotlightView(){
+  spotlightViewIndex = (spotlightViewIndex + 1) % SPOTLIGHT_VIEWS.length;
+  applySpotlightView();
+}
+
+function applySpotlightView(){
   const grid = document.getElementById('grid');
-  if(!el || !grid) return;
-  if(spotlightVisible){
-    const events = todaysEvents();
-    if(events.length === 0){ spotlightVisible = false; return; } // nada que mostrar hoy, se queda en el calendario
-    renderSpotlight();
-    el.classList.add('visible');
-    grid.classList.add('dimmed');
-  } else {
-    el.classList.remove('visible');
-    grid.classList.remove('dimmed');
+  const elToday = document.getElementById('spotlight');
+  const elYesterday = document.getElementById('spotlightYesterday');
+  if(!grid || !elToday || !elYesterday) return;
+
+  let view = SPOTLIGHT_VIEWS[spotlightViewIndex];
+
+  // Si la vista elegida no tiene partidos, se salta a la siguiente automáticamente
+  // (nunca se queda pegado mostrando una pantalla vacía).
+  let guard = 0;
+  while(guard < SPOTLIGHT_VIEWS.length){
+    if(view === 'grid') break;
+    if(view === 'today' && todaysEvents().length > 0) break;
+    if(view === 'yesterday' && yesterdaysEvents().length > 0) break;
+    spotlightViewIndex = (spotlightViewIndex + 1) % SPOTLIGHT_VIEWS.length;
+    view = SPOTLIGHT_VIEWS[spotlightViewIndex];
+    guard++;
   }
+
+  if(view === 'today') renderSpotlight();
+  if(view === 'yesterday') renderSpotlightYesterday();
+
+  grid.classList.toggle('dimmed', view !== 'grid');
+  elToday.classList.toggle('visible', view === 'today');
+  elYesterday.classList.toggle('visible', view === 'yesterday');
 }
 
 function renderAll(){
   const days = buildDayList();
   renderGrid(days);
-  if(spotlightVisible) renderSpotlight(); // refresca datos en vivo mientras está mostrándose
+  // Refresca la vista que esté activa ahora mismo con datos actuales (marcadores en vivo, etc).
+  const currentView = SPOTLIGHT_VIEWS[spotlightViewIndex];
+  if(currentView === 'today') renderSpotlight();
+  if(currentView === 'yesterday') renderSpotlightYesterday();
   const keys = new Set(days.map(d => d.key));
   return CACHE.events.filter(e => keys.has(dateKeyBogota(e.startISO))).length;
 }
@@ -1223,7 +1261,7 @@ loadEvents();
 renderClock();
 setInterval(tick, CONFIG.TICK_MS);
 setInterval(loadEvents, CONFIG.REFRESH_EVENTS_MS);
-setInterval(toggleSpotlightVisibility, CONFIG.SPOTLIGHT_SECONDS * 1000);
+setInterval(rotateSpotlightView, CONFIG.SPOTLIGHT_SECONDS * 1000);
 </script>
 </body>
 </html>
