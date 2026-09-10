@@ -113,7 +113,8 @@
   }
   .matches .match{
     flex:0 0 auto; width:250px; /* tamaño fijo, todos los partidos se ven igual de grandes */
-    display:flex; flex-direction:column; overflow:hidden; /* nunca se sale del alto de la fila */
+    display:flex; flex-direction:column; justify-content:center; gap:calc(4px * var(--s));
+    overflow:hidden; /* nunca se sale del alto de la fila */
   }
   .matches .match .comp,
   .matches .match .title,
@@ -1277,8 +1278,8 @@ function renderClock(){
 /* =========================================================
    SPOTLIGHT: TODOS los partidos de HOY y de AYER, rotando con el calendario
    ========================================================= */
-const SPOTLIGHT_VIEWS = ['grid', 'today', 'grid', 'yesterday'];
-const SPOTLIGHT_DURATIONS = { grid: 30, today: 8, yesterday: 8 }; // segundos que dura cada vista
+const SPOTLIGHT_VIEWS = ['today', 'grid', 'grid', 'yesterday'];
+const SPOTLIGHT_DURATIONS = { grid: 30, today: 10, yesterday: 10 }; // segundos que dura cada vista
 let spotlightViewIndex = 0;
 
 function todaysEvents(){
@@ -1429,7 +1430,9 @@ function tick(){
 
 window.addEventListener('resize', renderAll);
 
-loadEvents();
+loadEvents().then(() => {
+  applySpotlightView(); // muestra bien la primera vista del ciclo ('hoy') ya con los datos cargados
+});
 renderClock();
 setInterval(tick, CONFIG.TICK_MS);
 setInterval(loadEvents, CONFIG.REFRESH_EVENTS_MS);
