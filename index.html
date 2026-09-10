@@ -107,13 +107,20 @@
 
   .matches{
     flex:1 1 auto; min-height:0; min-width:0; overflow:hidden;
-    display:flex; flex-direction:row; flex-wrap:nowrap; align-items:flex-start;
+    display:flex; flex-direction:row; flex-wrap:nowrap; align-items:stretch;
     gap:9px;
     padding:10px;
   }
   .matches .match{
     flex:0 0 auto; width:250px; /* tamaño fijo, todos los partidos se ven igual de grandes */
+    display:flex; flex-direction:column; overflow:hidden; /* nunca se sale del alto de la fila */
   }
+  .matches .match .comp,
+  .matches .match .title,
+  .matches .match .venue,
+  .matches .match .row2,
+  .matches .match .progress{ flex:0 0 auto; }
+  .matches .match .matchEvents{ flex:1 1 auto; min-height:0; overflow:hidden; }
   .matches .match:nth-child(1){animation-delay:.08s;}
   .matches .match:nth-child(2){animation-delay:.16s;}
   .matches .match:nth-child(3){animation-delay:.24s;}
@@ -333,7 +340,7 @@ const CONFIG = {
   MIN_SCALE: 0.4,
   SPOTLIGHT_MIN_SCALE: 0.55,
   STATIC_MATCH_THRESHOLD: 3, // hasta 3 partidos por día se muestran fijos; más de eso, en carrusel
-  CAROUSEL_SPEED_PX_S: 55,   // velocidad del carrusel en píxeles por segundo
+  CAROUSEL_SPEED_PX_S: 32,   // velocidad del carrusel en píxeles por segundo
   SPOTLIGHT_SECONDS: 20, // valor de respaldo, ya no se usa directo (ver SPOTLIGHT_DURATIONS)
 
   // --- ESPN (marcador final) ---
@@ -1106,7 +1113,8 @@ function rotateDayPage(){
   }, 360);
 }
 
-function matchCardHTML(ev){
+function matchCardHTML(ev, opts={}){
+  const showEvents = opts.showEvents !== false;
   const st = matchStatus(ev);
   const info = getMatchInfo(ev); // null si no hay cobertura ESPN o todavía no hay datos
   let centerHTML = '';
@@ -1119,7 +1127,7 @@ function matchCardHTML(ev){
         <div class="scoreBig">${info.golesHome} - ${info.golesAway}</div>
         <div class="matchClock"><span class="liveDotSmall"></span>${info.clockText || 'En vivo'}</div>
       </div>`;
-      const evsLive = info.eventId ? getMatchEvents(info) : { home: [], away: [] };
+      const evsLive = (showEvents && info.eventId) ? getMatchEvents(info) : { home: [], away: [] };
       if(evsLive.home.length || evsLive.away.length){
         eventsHTML = `<div class="matchEvents">
           <div class="teamEvents">${evsLive.home.map(l => `<div>${l}</div>`).join('')}</div>
@@ -1136,7 +1144,7 @@ function matchCardHTML(ev){
         <div class="scoreBig">${info.golesHome} - ${info.golesAway}</div>
         <div class="matchClock">Finalizado</div>
       </div>`;
-      const evs = info.eventId ? getMatchEvents(info) : { home: [], away: [] };
+      const evs = (showEvents && info.eventId) ? getMatchEvents(info) : { home: [], away: [] };
       if(evs.home.length || evs.away.length){
         eventsHTML = `<div class="matchEvents">
           <div class="teamEvents">${evs.home.map(l => `<div>${l}</div>`).join('')}</div>
@@ -1144,7 +1152,7 @@ function matchCardHTML(ev){
         </div>`;
       }
     } else {
-      centerHTML = `<span class="badge done">Fin</span>`;
+      centerHTML = `<span class="badge done">Finalizado</span>`;
     }
   } else {
     centerHTML = `<span class="kickoff">${ev.allDay ? '--:--' : fmtTime(ev.startISO)}</span>`;
@@ -1198,7 +1206,7 @@ function renderGrid(days){
 // para el spotlight de hoy/ayer. Va achicando de a poco hasta que entre todo o hasta
 // llegar al mínimo legible; si aún así no entra, se deja mostrar con leve desborde
 // (nunca se ocultan partidos).
-function fitMatchesGrid(container, events, minScale){
+function fitMatchesGrid(container, events, minScale, cardOpts){
   if(!container) return;
   if(events.length === 0){
     container.style.setProperty('--s', 1);
@@ -1209,7 +1217,7 @@ function fitMatchesGrid(container, events, minScale){
   let scale = 1;
   const render = () => {
     container.style.setProperty('--s', scale.toFixed(2));
-    container.innerHTML = events.map(matchCardHTML).join('');
+    container.innerHTML = events.map(ev => matchCardHTML(ev, cardOpts)).join('');
   };
 
   render();
@@ -1244,12 +1252,12 @@ function renderDayMatches(container, events){
 
   if(events.length <= CONFIG.STATIC_MATCH_THRESHOLD){
     container.classList.remove('carousel');
-    container.innerHTML = events.map(matchCardHTML).join('');
+    container.innerHTML = events.map(ev => matchCardHTML(ev)).join('');
     return;
   }
 
   container.classList.add('carousel');
-  const cardsHTML = events.map(matchCardHTML).join('');
+  const cardsHTML = events.map(ev => matchCardHTML(ev)).join('');
   container.innerHTML = `<div class="matchesTrack">${cardsHTML}${cardsHTML}</div>`;
   const track = container.querySelector('.matchesTrack');
   const halfWidth = track.scrollWidth / 2;
@@ -1288,7 +1296,7 @@ function yesterdaysEvents(){
     .sort((a, b) => new Date(a.startISO) - new Date(b.startISO));
 }
 
-function renderDayView(elId, events, titlePrefix, dateForLabel){
+function renderDayView(elId, events, titlePrefix, dateForLabel, cardOpts){
   const el = document.getElementById(elId);
   if(!el) return;
   if(events.length === 0){ el.innerHTML = ''; return; }
@@ -1299,7 +1307,7 @@ function renderDayView(elId, events, titlePrefix, dateForLabel){
       </div>
       <div class="spotlight-today-grid" id="${elId}-grid"></div>
     </div>`;
-  fitMatchesGrid(document.getElementById(`${elId}-grid`), events, CONFIG.SPOTLIGHT_MIN_SCALE);
+  fitMatchesGrid(document.getElementById(`${elId}-grid`), events, CONFIG.SPOTLIGHT_MIN_SCALE, cardOpts);
 }
 
 function renderSpotlight(){
@@ -1309,7 +1317,7 @@ function renderSpotlight(){
 function renderSpotlightYesterday(){
   const y = new Date(bogotaNow());
   y.setDate(y.getDate() - 1);
-  renderDayView('spotlightYesterday', yesterdaysEvents(), 'Partidos de ayer', y);
+  renderDayView('spotlightYesterday', yesterdaysEvents(), 'Partidos de ayer', y, { showEvents:false });
 }
 
 // Rota entre el calendario de 7 días, los partidos de hoy y los de ayer,
