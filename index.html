@@ -64,14 +64,15 @@
   .clock{font-family:'DM Mono', monospace; font-size:13px; color:rgba(255,255,255,0.9); text-align:right;}
   .clock b{font-weight:500; color:#fff;}
 
-  /* ---------- Grid de 7 días ---------- */
+  /* ---------- 7 días en filas horizontales de ancho completo ---------- */
   .grid{
     flex:1 1 auto; min-height:0;
-    display:grid; grid-template-columns:repeat(7, 1fr);
-    gap:10px; padding:10px 12px;
+    display:flex; flex-direction:column;
+    gap:6px; padding:8px 12px;
   }
   .dayCol{
-    min-height:0; display:flex; flex-direction:column;
+    min-height:0; flex:1 1 0;
+    display:flex; flex-direction:row; align-items:stretch;
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
     box-shadow:var(--shadow-sm); overflow:hidden;
     animation:fadeUp .35s var(--ease) both;
@@ -81,19 +82,24 @@
     box-shadow:var(--shadow), 0 0 0 1px rgba(0,99,204,0.25) inset;
   }
   .dayHead{
-    flex:0 0 auto; text-align:center; padding:7px 4px 6px;
-    border-bottom:1px solid var(--line); background:var(--soft-blue);
+    flex:0 0 108px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:6px 8px;
+    border-right:1px solid var(--line); background:var(--soft-blue);
   }
   .dayCol.today .dayHead{background:var(--primary); }
-  .dayHead .wd{font-size:14px; text-transform:uppercase; letter-spacing:.6px; font-weight:600; color:var(--primary-dark);}
+  .dayHead .wd{font-size:15px; text-transform:uppercase; letter-spacing:.6px; font-weight:600; color:var(--primary-dark);}
   .dayCol.today .dayHead .wd{color:#fff;}
-  .dayHead .dt{font-family:'DM Mono', monospace; font-size:10px; color:var(--muted);}
+  .dayHead .dt{font-family:'DM Mono', monospace; font-size:11px; color:var(--muted); margin-top:2px;}
   .dayCol.today .dayHead .dt{color:rgba(255,255,255,0.85);}
 
   .matches{
-    flex:1 1 auto; min-height:0; overflow:hidden;
-    display:flex; flex-direction:column; gap:calc(6px * var(--s));
-    padding:calc(7px * var(--s)) calc(7px * var(--s)) calc(9px * var(--s));
+    flex:1 1 auto; min-height:0; min-width:0; overflow:hidden;
+    display:flex; flex-direction:row; flex-wrap:wrap; align-content:flex-start;
+    gap:calc(6px * var(--s));
+    padding:calc(7px * var(--s));
+  }
+  .matches .match{
+    flex:0 0 auto; width:calc(200px * var(--s));
   }
 
   .emptyState{ margin:auto; color:var(--muted); font-size:12px; text-align:center; padding:10px; }
@@ -185,8 +191,10 @@
   @keyframes fadeUp{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
 
   @media (max-width:900px){
-    .grid{grid-template-columns:repeat(7,1fr); gap:4px; padding:4px;}
+    .grid{gap:4px; padding:4px;}
+    .dayHead{flex-basis:70px; padding:4px;}
     .dayHead .wd{font-size:10px;}
+    .matches .match{width:calc(150px * var(--s));}
     .brand .titles .t2{display:none;}
   }
 
