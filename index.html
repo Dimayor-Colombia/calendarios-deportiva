@@ -2,10 +2,12 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+<meta name="theme-color" content="#004c99">
 <title>DIMAYOR · Partidos de los Próximos Días</title>
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,9 +42,16 @@
   html,body{
     height:100%; margin:0; padding:0;
     overflow:hidden; /* board de una sola pantalla, sin scroll, para SmartTV */
+    overscroll-behavior:none; /* evita el rebote/pull-to-refresh del WebView */
+    touch-action:manipulation; /* evita el doble-tap-zoom y el delay de 300ms */
     background:var(--bg);
     color:var(--text);
-    font-family:'DM Sans', sans-serif;
+    font-family:'DM Sans', -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; /* respaldo si la webfont tarda/falla */
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    -webkit-user-select:none; user-select:none; /* sin selección de texto en pantalla táctil */
+    -webkit-touch-callout:none; /* sin menú de "guardar imagen" al mantener presionado */
+    -webkit-tap-highlight-color:transparent;
   }
   .board{height:100vh; height:100dvh; display:flex; flex-direction:column;}
 
@@ -61,7 +70,7 @@
   .brand .titles{line-height:1.15;}
   .brand .titles .t1{font-size:16px; font-weight:700; letter-spacing:.3px;}
   .brand .titles .t2{font-size:11px; color:rgba(255,255,255,0.75);}
-  .clock{font-family:'DM Mono', monospace; font-size:13px; color:rgba(255,255,255,0.9); text-align:right;}
+  .clock{font-family:'DM Mono', 'Consolas', monospace; font-size:13px; color:rgba(255,255,255,0.9); text-align:right;}
   .clock b{font-weight:500; color:#fff;}
 
   /* ---------- 7 días en filas horizontales de ancho completo ---------- */
@@ -76,6 +85,7 @@
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
     box-shadow:var(--shadow-sm); overflow:hidden;
     animation:rowIn .5s var(--ease) both;
+    will-change:transform, opacity;
   }
   .dayCol:nth-child(1){animation-delay:.02s;}
   .dayCol:nth-child(2){animation-delay:.1s;}
@@ -92,7 +102,7 @@
   .dayCol.today .dayHead{background:linear-gradient(160deg, var(--primary-dark), var(--primary-light)); }
   .dayHead .wd{font-size:24px; text-transform:uppercase; letter-spacing:1px; font-weight:700; color:var(--primary-dark);}
   .dayCol.today .dayHead .wd{color:#fff;}
-  .dayHead .dt{font-family:'DM Mono', monospace; font-size:14px; color:var(--muted); margin-top:4px;}
+  .dayHead .dt{font-family:'DM Mono', 'Consolas', monospace; font-size:14px; color:var(--muted); margin-top:4px;}
   .dayCol.today .dayHead .dt{color:rgba(255,255,255,0.9);}
 
   .matches{
@@ -123,12 +133,17 @@
     padding:calc(9px * var(--s)) calc(11px * var(--s));
     box-shadow:var(--shadow-sm);
     animation:cardIn .4s var(--ease) both;
-    transition: box-shadow .3s ease;
+    contain:content; /* aísla layout/paint de cada tarjeta, menos trabajo por repintado */
+    will-change:transform, opacity;
   }
   .match.finalizado{opacity:.95; background: var(--comp-bg-soft, var(--card));}
-  .match.vivo{
-    box-shadow:0 0 0 2px rgba(220,38,38,.55), var(--shadow);
-    animation:cardIn .4s var(--ease) both, liveGlow 1.8s ease-in-out infinite;
+  .match.vivo{ box-shadow:0 0 0 2px rgba(220,38,38,.55), var(--shadow); }
+  .match.vivo::after{
+    content:''; position:absolute; inset:-2px; border-radius:inherit;
+    box-shadow:0 0 0 4px rgba(220,38,38,.28), var(--shadow-lg);
+    opacity:0; pointer-events:none;
+    animation:liveGlow 1.8s ease-in-out infinite;
+    will-change:opacity;
   }
   .match .comp{
     font-size:calc(11px * var(--s)); letter-spacing:.4px; text-transform:uppercase;
@@ -146,7 +161,7 @@
   }
   .match .row2{display:flex; align-items:center; justify-content:center; margin-top:calc(5px * var(--s));}
   .kickoff{
-    font-family:'DM Mono', monospace; font-size:calc(16px * var(--s)); font-weight:600;
+    font-family:'DM Mono', 'Consolas', monospace; font-size:calc(16px * var(--s)); font-weight:600;
     color:var(--primary);
   }
 
@@ -164,7 +179,7 @@
     display:flex; flex-direction:column; align-items:center; gap:1px;
   }
   .scoreBig{
-    font-family:'DM Mono', monospace; font-weight:800;
+    font-family:'DM Mono', 'Consolas', monospace; font-weight:800;
     font-size:calc(19px * var(--s)); color:var(--text); letter-spacing:.5px; line-height:1;
   }
   .scoreboard.live .scoreBig{ color:var(--danger); }
@@ -209,13 +224,13 @@
   @keyframes rowIn{from{opacity:0; transform:translateX(-16px);} to{opacity:1; transform:translateX(0);}}
   @keyframes cardIn{from{opacity:0; transform:translateY(10px) scale(.96);} to{opacity:1; transform:translateY(0) scale(1);}}
   @keyframes liveGlow{
-    0%,100%{ box-shadow:0 0 0 2px rgba(220,38,38,.55), var(--shadow); }
-    50%{ box-shadow:0 0 0 4px rgba(220,38,38,.18), var(--shadow-lg); }
+    0%,100%{ opacity:0; }
+    50%{ opacity:1; }
   }
   @keyframes pageExit{ from{opacity:1; transform:translateX(0) scale(1);} to{opacity:0; transform:translateX(-32px) scale(.98);} }
   @keyframes pageEnter{ from{opacity:0; transform:translateX(32px) scale(.98);} to{opacity:1; transform:translateX(0) scale(1);} }
-  .grid.page-exit{ animation:pageExit .35s var(--ease) forwards; }
-  .grid.page-enter{ animation:pageEnter .45s var(--ease) both; }
+  .grid.page-exit{ animation:pageExit .35s var(--ease) forwards; will-change:transform, opacity; }
+  .grid.page-enter{ animation:pageEnter .45s var(--ease) both; will-change:transform, opacity; }
 
   .pageDots{ display:flex; align-items:center; gap:6px; }
   .pageDots .dot{ width:7px; height:7px; border-radius:50%; background:var(--line); transition:background .3s ease, transform .3s ease; }
@@ -267,7 +282,7 @@
 <div class="board">
   <header>
     <div class="brand">
-      <img src="https://lh3.googleusercontent.com/d/1l4mdgdoIJxuPBRY8VDhhC-AJQW6vgdWr" alt="DIMAYOR">
+      <img src="https://lh3.googleusercontent.com/d/1l4mdgdoIJxuPBRY8VDhhC-AJQW6vgdWr" alt="DIMAYOR" onerror="this.style.display='none'">
       <div class="sep"></div>
       <div class="titles">
         <div class="t1">Partidos de los Próximos Días</div>
@@ -1232,7 +1247,7 @@ function renderDayView(elId, events, titlePrefix, dateForLabel){
   if(events.length === 0){ el.innerHTML = ''; return; }
   el.innerHTML = `<div class="spotlight-today">
       <div class="spotlight-today-topbar">
-        <img class="spotlight-today-logo" src="https://lh3.googleusercontent.com/d/1l4mdgdoIJxuPBRY8VDhhC-AJQW6vgdWr" alt="DIMAYOR">
+        <img class="spotlight-today-logo" src="https://lh3.googleusercontent.com/d/1l4mdgdoIJxuPBRY8VDhhC-AJQW6vgdWr" alt="DIMAYOR" onerror="this.style.display='none'">
         <div class="spotlight-today-title">${titlePrefix} · ${WD_NAMES[weekdayIndexBogota(dateForLabel)]} ${fmtDayShort(dateForLabel)}</div>
       </div>
       <div class="spotlight-today-grid">${events.map(ev => matchCardHTML(ev)).join('')}</div>
