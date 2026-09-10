@@ -167,8 +167,8 @@
   .match .comp img{width:calc(15px * var(--s)); height:calc(15px * var(--s)); object-fit:contain; border-radius:3px; flex:0 0 auto;}
   .match .title{
     font-size:calc(16px * var(--s)); font-weight:700; line-height:1.25; color:var(--text);
-    white-space:normal; overflow-wrap:break-word;
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    white-space:normal; overflow-wrap:break-word; word-break:break-word;
+    max-height:2.6em; overflow:hidden; /* tope duro de ~2 líneas, sin depender de -webkit-line-clamp */
   }
   .match .venue{
     font-size:calc(11.5px * var(--s)); color:var(--muted); margin-top:calc(3px * var(--s));
