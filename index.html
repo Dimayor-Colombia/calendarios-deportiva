@@ -107,20 +107,32 @@
 
   .matches{
     flex:1 1 auto; min-height:0; min-width:0; overflow:hidden;
-    display:flex; flex-direction:row; flex-wrap:wrap; align-content:flex-start;
-    gap:calc(9px * var(--s));
-    padding:calc(10px * var(--s));
+    display:flex; flex-direction:row; flex-wrap:nowrap; align-items:flex-start;
+    gap:9px;
+    padding:10px;
   }
   .matches .match{
-    flex:0 0 auto; width:calc(250px * var(--s));
+    flex:0 0 auto; width:250px; /* tamaño fijo, todos los partidos se ven igual de grandes */
   }
   .matches .match:nth-child(1){animation-delay:.08s;}
-  .matches .match:nth-child(2){animation-delay:.14s;}
-  .matches .match:nth-child(3){animation-delay:.2s;}
-  .matches .match:nth-child(4){animation-delay:.26s;}
-  .matches .match:nth-child(5){animation-delay:.32s;}
-  .matches .match:nth-child(6){animation-delay:.38s;}
-  .matches .match:nth-child(n+7){animation-delay:.44s;}
+  .matches .match:nth-child(2){animation-delay:.16s;}
+  .matches .match:nth-child(3){animation-delay:.24s;}
+
+  /* Carrusel: cuando hay más de 3 partidos en el día, en vez de achicar las tarjetas
+     se listan al doble (misma lista repetida) dentro de una franja que se desliza de
+     derecha a izquierda sin parar. Al llegar a -50% se ve idéntico al inicio (porque
+     el contenido está duplicado), así que el loop no se nota. */
+  .matchesTrack{
+    display:flex; flex-direction:row; flex-wrap:nowrap; gap:9px;
+  }
+  .matches.carousel{
+    -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+    mask-image:linear-gradient(90deg, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  }
+  .matches.carousel .matchesTrack{
+    animation:marquee linear infinite;
+    animation-duration:var(--marquee-duration, 24s);
+  }
 
   .emptyState{ margin:auto; color:var(--muted); font-size:14px; text-align:center; padding:10px; }
 
@@ -222,6 +234,10 @@
     0%,100%{ box-shadow:0 0 0 2px rgba(220,38,38,.55), var(--shadow); }
     50%{ box-shadow:0 0 0 4px rgba(220,38,38,.18), var(--shadow-lg); }
   }
+  @keyframes marquee{
+    from{ transform:translateX(0); }
+    to{ transform:translateX(-50%); }
+  }
   @keyframes pageExit{ from{opacity:1; transform:translateX(0) scale(1);} to{opacity:0; transform:translateX(-32px) scale(.98);} }
   @keyframes pageEnter{ from{opacity:0; transform:translateX(32px) scale(.98);} to{opacity:1; transform:translateX(0) scale(1);} }
   .grid.page-exit{ animation:pageExit .35s var(--ease) forwards; }
@@ -236,7 +252,7 @@
     .dayHead{flex-basis:80px; padding:4px; gap:3px;}
     .dayHead .dateBadge{width:26px; height:26px; font-size:11px;}
     .dayHead .wd{font-size:10px;}
-    .matches .match{width:calc(180px * var(--s));}
+    .matches .match{width:180px;}
     .brand .titles .t2{display:none;}
   }
 
@@ -316,6 +332,8 @@ const CONFIG = {
   RELOAD_AT_MIDNIGHT: true,
   MIN_SCALE: 0.4,
   SPOTLIGHT_MIN_SCALE: 0.55,
+  STATIC_MATCH_THRESHOLD: 3, // hasta 3 partidos por día se muestran fijos; más de eso, en carrusel
+  CAROUSEL_SPEED_PX_S: 55,   // velocidad del carrusel en píxeles por segundo
   SPOTLIGHT_SECONDS: 20, // valor de respaldo, ya no se usa directo (ver SPOTLIGHT_DURATIONS)
 
   // --- ESPN (marcador final) ---
@@ -1207,7 +1225,36 @@ function fitMatchesGrid(container, events, minScale){
 function fillColumn(key){
   const col = document.getElementById(`matches-${key}`);
   const all = eventsForDay(key);
-  fitMatchesGrid(col, all, CONFIG.MIN_SCALE);
+  renderDayMatches(col, all);
+}
+
+// Todas las tarjetas de partido de un día se ven SIEMPRE del mismo tamaño normal.
+// Hasta STATIC_MATCH_THRESHOLD partidos: fila fija, quieta. Más que eso: la lista se
+// duplica y se pone a correr de derecha a izquierda sin parar (carrusel), para que
+// con el tiempo se vean todos sin achicar ninguno.
+function renderDayMatches(container, events){
+  if(!container) return;
+  container.style.removeProperty('--s'); // tamaño fijo: usa el valor base (1) de :root
+
+  if(events.length === 0){
+    container.classList.remove('carousel');
+    container.innerHTML = `<div class="emptyState">Sin partidos</div>`;
+    return;
+  }
+
+  if(events.length <= CONFIG.STATIC_MATCH_THRESHOLD){
+    container.classList.remove('carousel');
+    container.innerHTML = events.map(matchCardHTML).join('');
+    return;
+  }
+
+  container.classList.add('carousel');
+  const cardsHTML = events.map(matchCardHTML).join('');
+  container.innerHTML = `<div class="matchesTrack">${cardsHTML}${cardsHTML}</div>`;
+  const track = container.querySelector('.matchesTrack');
+  const halfWidth = track.scrollWidth / 2;
+  const duration = Math.max(10, halfWidth / CONFIG.CAROUSEL_SPEED_PX_S);
+  track.style.setProperty('--marquee-duration', `${duration.toFixed(1)}s`);
 }
 
 function renderClock(){
