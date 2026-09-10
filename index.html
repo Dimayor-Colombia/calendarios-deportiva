@@ -87,15 +87,23 @@
     box-shadow:var(--shadow-lg), 0 0 0 2px rgba(0,99,204,0.35) inset;
   }
   .dayHead{
-    flex:0 0 150px; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    text-align:center; padding:6px 10px; position:relative;
-    border-right:1px solid var(--line); background:var(--soft-blue);
+    flex:0 0 96px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:5px; text-align:center; padding:6px 4px; position:relative;
+    border-right:1px solid var(--line);
+    background:linear-gradient(180deg, var(--soft-blue), var(--card));
   }
-  .dayCol.today .dayHead{background:linear-gradient(160deg, var(--primary-dark), var(--primary-light)); }
-  .dayHead .wd{font-size:24px; text-transform:uppercase; letter-spacing:1px; font-weight:700; color:var(--primary-dark);}
+  .dayCol.today .dayHead{background:linear-gradient(180deg, var(--primary), var(--primary-dark)); }
+  .dayHead .dateBadge{
+    width:34px; height:34px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:#fff; color:var(--primary-dark); box-shadow:var(--shadow-sm);
+    font-family:'DM Mono', monospace; font-weight:700; font-size:13px;
+  }
+  .dayCol.today .dayHead .dateBadge{ background:#fff; color:var(--primary-dark); }
+  .dayHead .wd{font-size:12px; text-transform:uppercase; letter-spacing:.8px; font-weight:700; color:var(--primary-dark);}
   .dayCol.today .dayHead .wd{color:#fff;}
-  .dayHead .dt{font-family:'DM Mono', monospace; font-size:14px; color:var(--muted); margin-top:4px;}
-  .dayCol.today .dayHead .dt{color:rgba(255,255,255,0.9);}
+  .dayHead .monthLabel{font-size:9px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); font-weight:500;}
+  .dayCol.today .dayHead .monthLabel{color:rgba(255,255,255,.85);}
 
   .matches{
     flex:1 1 auto; min-height:0; min-width:0; overflow:hidden;
@@ -225,8 +233,9 @@
 
   @media (max-width:900px){
     .grid{gap:4px; padding:4px;}
-    .dayHead{flex-basis:90px; padding:4px;}
-    .dayHead .wd{font-size:15px;}
+    .dayHead{flex-basis:80px; padding:4px; gap:3px;}
+    .dayHead .dateBadge{width:26px; height:26px; font-size:11px;}
+    .dayHead .wd{font-size:10px;}
     .matches .match{width:calc(180px * var(--s));}
     .brand .titles .t2{display:none;}
   }
@@ -259,10 +268,10 @@
   .spotlight-today-grid{
     --s:1.25;
     flex:1; min-height:0; overflow:hidden;
-    display:flex; flex-wrap:wrap; gap:16px;
+    display:flex; flex-wrap:wrap; gap:calc(14px * var(--s));
     align-content:flex-start; justify-content:center;
   }
-  .spotlight-today-grid .match{ width:330px; flex:0 0 330px; }
+  .spotlight-today-grid .match{ width:calc(300px * var(--s)); flex:0 0 auto; }
 </style>
 </head>
 <body>
@@ -305,7 +314,8 @@ const CONFIG = {
   TICK_MS: 20 * 1000,
   MATCH_DURATION_MIN: 130,
   RELOAD_AT_MIDNIGHT: true,
-  MIN_SCALE: 0.55,
+  MIN_SCALE: 0.4,
+  SPOTLIGHT_MIN_SCALE: 0.55,
   SPOTLIGHT_SECONDS: 20, // valor de respaldo, ya no se usa directo (ver SPOTLIGHT_DURATIONS)
 
   // --- ESPN (marcador final) ---
@@ -1148,53 +1158,56 @@ function eventsForDay(key){
 
 function renderGrid(days){
   const grid = document.getElementById('grid');
-  grid.innerHTML = days.map(d => `
+  grid.innerHTML = days.map(d => {
+    const [dayNum, monthAbbr] = d.shortDate.split(' ');
+    return `
     <section class="dayCol ${d.isToday ? 'today':''}" data-key="${d.key}">
       <div class="dayHead">
+        <div class="dateBadge">${dayNum}</div>
         <div class="wd">${d.label}</div>
-        <div class="dt">${d.shortDate}</div>
+        <div class="monthLabel">${monthAbbr}</div>
       </div>
       <div class="matches" id="matches-${d.key}"></div>
     </section>
-  `).join('');
+  `;
+  }).join('');
 
   days.forEach(d => fillColumn(d.key));
 }
 
-function fillColumn(key){
-  const col = document.getElementById(`matches-${key}`);
-  const all = eventsForDay(key);
-
-  if(all.length === 0){
-    col.style.setProperty('--s', 1);
-    col.innerHTML = `<div class="emptyState">Sin partidos</div>`;
+// Ajusta el tamaño (--s) de una grilla de tarjetas de partido para que TODAS quepan
+// en el contenedor, sin recortar ninguna. Se usa tanto para las columnas de día como
+// para el spotlight de hoy/ayer. Va achicando de a poco hasta que entre todo o hasta
+// llegar al mínimo legible; si aún así no entra, se deja mostrar con leve desborde
+// (nunca se ocultan partidos).
+function fitMatchesGrid(container, events, minScale){
+  if(!container) return;
+  if(events.length === 0){
+    container.style.setProperty('--s', 1);
+    container.innerHTML = `<div class="emptyState">Sin partidos</div>`;
     return;
   }
 
-  let visible = all.slice();
   let scale = 1;
-
   const render = () => {
-    col.style.setProperty('--s', scale.toFixed(2));
-    const hiddenCount = all.length - visible.length;
-    col.innerHTML = visible.map(matchCardHTML).join('')
-      + (hiddenCount > 0 ? `<div class="moreChip">+${hiddenCount} más</div>` : '');
+    container.style.setProperty('--s', scale.toFixed(2));
+    container.innerHTML = events.map(matchCardHTML).join('');
   };
 
   render();
 
   let guard = 0;
-  while(col.scrollHeight > col.clientHeight && guard < 60){
+  while(container.scrollHeight > container.clientHeight && scale > minScale && guard < 80){
     guard++;
-    if(scale > CONFIG.MIN_SCALE){
-      scale = Math.max(CONFIG.MIN_SCALE, scale - 0.05);
-    } else if(visible.length > 1){
-      visible = visible.slice(0, -1);
-    } else {
-      break;
-    }
+    scale = Math.max(minScale, scale - 0.03);
     render();
   }
+}
+
+function fillColumn(key){
+  const col = document.getElementById(`matches-${key}`);
+  const all = eventsForDay(key);
+  fitMatchesGrid(col, all, CONFIG.MIN_SCALE);
 }
 
 function renderClock(){
@@ -1237,8 +1250,9 @@ function renderDayView(elId, events, titlePrefix, dateForLabel){
         <img class="spotlight-today-logo" src="https://lh3.googleusercontent.com/d/1l4mdgdoIJxuPBRY8VDhhC-AJQW6vgdWr" alt="DIMAYOR">
         <div class="spotlight-today-title">${titlePrefix} · ${WD_NAMES[weekdayIndexBogota(dateForLabel)]} ${fmtDayShort(dateForLabel)}</div>
       </div>
-      <div class="spotlight-today-grid">${events.map(ev => matchCardHTML(ev)).join('')}</div>
+      <div class="spotlight-today-grid" id="${elId}-grid"></div>
     </div>`;
+  fitMatchesGrid(document.getElementById(`${elId}-grid`), events, CONFIG.SPOTLIGHT_MIN_SCALE);
 }
 
 function renderSpotlight(){
