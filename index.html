@@ -360,7 +360,9 @@ const CONFIG = {
   TEAM_LOGO_ALIASES: {
     "Independiente Valle del Cauca": "LOGO IVC (1)",
     "IVC": "LOGO IVC (1)",
-    "DIM": "Escudo Independiente Medellín"
+    "Independiente Valle": "LOGO IVC (1)",
+    "DIM": "Escudo Independiente Medellín",
+    "Internacional FC": "Escudo Internacional de Palmira"
   }
 };
 const CALENDARS = [
@@ -813,6 +815,22 @@ async function fetchLogos() {
   setLogoStatus(LOGOS.list.length ? `Escudos: ${LOGOS.list.length}` : "Escudos: la carpeta está vacía", !!LOGOS.list.length);
   LOGOS.loading = false;
 }
+// Compara dos palabras tolerando un error de digitación (letra de más/menos, cambiada o dos letras invertidas)
+function sameWord(a, b) {
+  if (a === b) return true;
+  if (a.length < 5 || b.length < 5 || Math.abs(a.length - b.length) > 1) return false;
+  const d = [];
+  for (let i = 0; i <= a.length; i++) { d[i] = [i]; }
+  for (let j = 0; j <= b.length; j++) { d[0][j] = j; }
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+    }
+  }
+  return d[a.length][b.length] <= 1;
+}
 const LOGO_CACHE = new Map();
 function findLogo(teamName) {
   if (!LOGOS.list.length || !teamName) return null;
@@ -830,17 +848,20 @@ function findLogo(teamName) {
   if (!result) {
     const words = logoWords(teamName);
     const hasSpecific = words.some((w) => !LOGO_GENERIC.has(w));
-    let best = null, bestScore = 0, bestRatio = 0;
+    let best = null, bestScore = 0, bestRatio = 0, tie = false;
     LOGOS.list.forEach((l) => {
-      const common = l.words.filter((w) => words.indexOf(w) !== -1);
+      const common = l.words.filter((w) => words.some((x) => sameWord(x, w)));
       if (!common.length) return;
       if (hasSpecific && !common.some((w) => !LOGO_GENERIC.has(w))) return;
       const ratio = common.length / l.words.length;
       if (common.length > bestScore || (common.length === bestScore && ratio > bestRatio)) {
-        best = l; bestScore = common.length; bestRatio = ratio;
+        best = l; bestScore = common.length; bestRatio = ratio; tie = false;
+      } else if (common.length === bestScore && ratio === bestRatio) {
+        tie = true;
       }
     });
-    result = best;
+    // Si dos escudos empatan (ej. "Internacional" sirve para Bogotá y Palmira), mejor no adivinar
+    result = tie ? null : best;
   }
   LOGO_CACHE.set(teamName, result);
   return result;
