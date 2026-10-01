@@ -213,6 +213,7 @@
   .venueRow .venue{ padding-bottom:0; }
   .side .kickoff{ font-size:1.375rem; display:flex; align-items:baseline; gap:0.25rem; }
   .side .kickoff small{ font-family:'DM Sans', sans-serif; font-size:0.75rem; font-weight:800; letter-spacing:.04em; }
+  .round{ font-size:0.75rem; font-weight:700; color:var(--muted); white-space:nowrap; max-width:45%; overflow:hidden; text-overflow:ellipsis; flex:0 0 auto; }
   .minute{ font-size:0.8125rem; font-weight:800; color:var(--live); white-space:nowrap; }
 
   .match.vivo{ box-shadow:0 0 0 0.1875rem var(--live), 0 0.375rem 1.375rem rgba(225,29,72,.45); animation:liveGlow 2s ease-in-out infinite; }
@@ -290,7 +291,7 @@
   <main id="table"></main>
 
   <footer>
-    <span id="statusLine">Iniciando…</span>
+    <span><span id="statusLine">Iniciando…</span> · <span id="logoStatus">Escudos: cargando…</span></span>
     <div class="legend" id="legend"></div>
     <span class="online"><i></i>En línea</span>
   </footer>
@@ -764,19 +765,35 @@ const LOGO_GENERIC = new Set(["deportivo", "deportes", "atletico", "independient
 function logoWords(name) {
   return normalizeName(name).split(" ").filter((w) => w && !LOGO_STOP.has(w));
 }
+function setLogoStatus(text, ok) {
+  const el = document.getElementById("logoStatus");
+  if (el) { el.textContent = text; el.style.color = ok ? "" : "#fbbf24"; }
+}
 async function fetchLogos() {
-  if (!CONFIG.LOGOS_FOLDER_ID || LOGOS.loading) return;
+  if (!CONFIG.LOGOS_FOLDER_ID) { setLogoStatus("Escudos: falta el ID de la carpeta", false); return; }
+  if (LOGOS.loading) return;
   LOGOS.loading = true;
   try {
     let list = [], pageToken = "";
     do {
-      const q = encodeURIComponent(`'${CONFIG.LOGOS_FOLDER_ID}' in parents and mimeType contains 'image/' and trashed = false`);
-      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&key=${encodeURIComponent(CONFIG.DRIVE_API_KEY)}&fields=nextPageToken,files(id,name)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true` + (pageToken ? `&pageToken=${pageToken}` : "");
-      const data = await getJSON(url);
-      list = list.concat((data.files || []).map((f) => {
-        const base = f.name.replace(/\.[a-z0-9]+$/i, "");
-        return { base: normalizeName(base), words: logoWords(base), url: `https://lh3.googleusercontent.com/d/${f.id}` };
-      }));
+      const q = encodeURIComponent(`'${CONFIG.LOGOS_FOLDER_ID}' in parents and trashed = false`);
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&key=${encodeURIComponent(CONFIG.DRIVE_API_KEY)}&fields=nextPageToken,files(id,name,mimeType)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true` + (pageToken ? `&pageToken=${pageToken}` : "");
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data && data.error && data.error.message ? data.error.message : "HTTP " + res.status;
+        throw new Error(msg);
+      }
+      list = list.concat((data.files || [])
+        .filter((f) => /^image\//.test(f.mimeType || "") || /\.(png|jpe?g|webp|gif|svg)$/i.test(f.name))
+        .map((f) => {
+          const base = f.name.replace(/\.[a-z0-9]+$/i, "");
+          return {
+            base: normalizeName(base), words: logoWords(base),
+            url: `https://lh3.googleusercontent.com/d/${f.id}`,
+            thumb: `https://drive.google.com/thumbnail?id=${f.id}&sz=w200`
+          };
+        }));
       pageToken = data.nextPageToken || "";
     } while (pageToken);
     LOGOS.list = list;
@@ -784,8 +801,11 @@ async function fetchLogos() {
     LOGO_CACHE.clear();
     lastTableHTML = "";
     renderTable();
+    if (list.length) setLogoStatus(`Escudos: ${list.length}`, true);
+    else setLogoStatus("Escudos: la carpeta no devuelve imágenes (¿está compartida con 'Cualquier persona con el enlace'?)", false);
   } catch (err) {
     console.warn("Error carpeta de escudos", err);
+    setLogoStatus("Escudos: error — " + err.message, false);
   } finally {
     LOGOS.loading = false;
   }
@@ -819,24 +839,34 @@ function findLogo(teamName) {
     });
     result = best;
   }
-  LOGO_CACHE.set(teamName, result ? result.url : null);
-  return result ? result.url : null;
+  LOGO_CACHE.set(teamName, result);
+  return result;
 }
-function splitTeams(title) {
-  const parts = String(title || "").split(/\s+(?:vs\.?|v\.?|x|-|–|—)\s+/i);
-  if (parts.length !== 2) return null;
-  const clean = (t) => t.replace(/\s*\(.*?\)\s*$/, "").trim();
-  return [clean(parts[0]), clean(parts[1])];
+function parseTitle(title) {
+  let t = String(title || "").trim(), round = "";
+  const colon = t.lastIndexOf(":");
+  if (colon !== -1) { round = t.slice(0, colon).trim(); t = t.slice(colon + 1).trim(); }
+  let parts = t.split(/\s+(?:vs\.?|v\.?|x)\s+/i);
+  if (parts.length !== 2) parts = t.split(/\s+(?:-|–|—)\s+/);
+  const clean = (x) => x.replace(/\s*\(.*?\)\s*$/, "").trim();
+  return { round, teams: parts.length === 2 ? [clean(parts[0]), clean(parts[1])] : null, rest: t };
 }
 function initials(name) {
   const w = logoWords(name).filter((x) => !LOGO_GENERIC.has(x));
   const src = w.length ? w : logoWords(name);
   return src.slice(0, 2).map((x) => x.charAt(0).toUpperCase()).join("") || "?";
 }
+// Si la imagen falla, se prueba la miniatura de Drive; si también falla, quedan las iniciales
+function crestFail(img) {
+  const thumb = img.getAttribute("data-thumb");
+  if (thumb && img.src !== thumb) { img.src = thumb; return; }
+  img.parentNode.classList.remove("has-img");
+  img.parentNode.removeChild(img);
+}
 function crestHTML(name) {
-  const url = findLogo(name);
-  const img = url ? `<img src="${url}" alt="" onerror="this.parentNode.classList.remove('has-img');this.parentNode.removeChild(this)">` : "";
-  return `<span class="crest ${url ? "has-img" : ""}"><span class="ini">${esc(initials(name))}</span>${img}</span>`;
+  const logo = findLogo(name);
+  const img = logo ? `<img src="${logo.url}" data-thumb="${logo.thumb}" alt="" onerror="crestFail(this)">` : "";
+  return `<span class="crest ${logo ? "has-img" : ""}"><span class="ini">${esc(initials(name))}</span>${img}</span>`;
 }
 
 function cardHTML(ev) {
@@ -844,7 +874,8 @@ function cardHTML(ev) {
   const info = getMatchInfo(ev);
   let state = st.state;
   if (info) state = info.completed ? "finalizado" : "en_vivo";
-  const teams = splitTeams(ev.title);
+  const parsed = parseTitle(ev.title);
+  const teams = parsed.teams;
   let badge = "", side = "", minute = "", progress = "";
   const hasScore = !!info;
   const gh = hasScore ? Number(info.golesHome) : null, ga = hasScore ? Number(info.golesAway) : null;
@@ -871,7 +902,8 @@ function cardHTML(ev) {
         <div class="team">${crestHTML(teams[0])}<span class="tname">${esc(teams[0])}</span></div>
         <div class="team">${crestHTML(teams[1])}<span class="tname">${esc(teams[1])}</span></div>
       </div>${side}</div>`
-    : `<div class="teams"><div class="teamList"><div class="title">${esc(ev.title)}</div></div>${side}</div>`;
+    : `<div class="teams"><div class="teamList"><div class="title">${esc(parsed.rest || ev.title)}</div></div>${side}</div>`;
+  const right = minute || (parsed.round ? `<span class="round">${esc(parsed.round)}</span>` : "");
   return `<div class="match ${state === "en_vivo" ? "vivo" : ""} ${state === "finalizado" ? "finalizado" : ""}" style="--comp-color:${ev.cal.color}">
     <div class="top">
       <div class="comp"><img src="${ev.cal.logo}" alt="" onerror="this.style.display='none'"><span>${esc(ev.cal.label)}</span></div>
@@ -880,7 +912,7 @@ function cardHTML(ev) {
     ${teamBlock}
     <div class="venueRow">
       <div class="venue">${ev.location ? "📍 " + esc(ev.location) : ""}</div>
-      ${minute}
+      ${right}
     </div>
     ${progress}
   </div>`;
