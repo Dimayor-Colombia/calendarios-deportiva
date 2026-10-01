@@ -338,11 +338,24 @@ const CONFIG = {
   DRIVE_REFRESH_MS: 5 * 60 * 1e3,
   DRIVE_IMAGE_SECONDS: 8,
 
-  // --- Escudos de los equipos (carpeta de Drive compartida "Cualquier persona con el enlace") ---
-  // Los archivos se llaman como el equipo, ej. "Escudo Atlético Nacional.png". El board quita
-  // "Escudo", "Logo", "FC", "SA", tildes y mayúsculas para comparar con el nombre del calendario.
-  LOGOS_FOLDER_ID: "1YMMw31IOgpmZb1S9G4Uxp16AU6CQfLYl", // carpeta de escudos compartida
+  // --- Escudos de los equipos: carpeta "escudos" dentro del mismo repositorio de GitHub ---
+  // Basta con subir la imagen a esa carpeta, nombrada como el equipo (ej. "Escudo Atlético Nacional.png").
+  // El board quita "Escudo", "Logo", "FC", "SA", tildes y mayúsculas para compararlo con el calendario.
+  GITHUB_REPO: "dimayor-colombia/calendarios-deportiva", // usuario/repositorio en GitHub
+  LOGOS_DIR: "escudos",                                  // carpeta de los escudos dentro del repositorio
   LOGOS_REFRESH_MS: 6 * 60 * 60 * 1e3,
+  // Lista de respaldo por si GitHub no deja consultar la carpeta (límite de consultas); se usa solo si falla.
+  LOGO_FILES: [
+    "Deportes Quindío.png", "Escudo Águilas Doradas.png", "Escudo Alianza Valledupar FC.png", "Escudo América de Cali.png",
+    "Escudo Atlético Bucaramanga.png", "Escudo Atlético FC.png", "Escudo Atlético Nacional.png", "Escudo Barranquilla FC.png",
+    "Escudo Boca Juniors de Cali.png", "Escudo Bogotá FC.png", "Escudo Boyacá Chicó FC.png", "Escudo Cúcuta Deportivo.png",
+    "Escudo Deportes Tolima.png", "Escudo Deportivo Cali.png", "Escudo Deportivo Pasto.png", "Escudo Deportivo Pereira FC SA.png",
+    "Escudo Envigado FC.png", "Escudo Fortaleza F.C..png", "Escudo Independiente Medellín.png", "Escudo Independiente Santa Fe.png",
+    "Escudo Internacional de Bogota.png", "Escudo Internacional de Palmira.png", "Escudo Jaguares FC.png", "Escudo Junior.png",
+    "Escudo Leones FC.png", "Escudo Llaneros FC.png", "Escudo Millonarios FC.png", "Escudo Once Caldas DAF.png",
+    "Escudo Orsomarso SC.png", "Escudo Patriotas FC.png", "Escudo Real Cartagena.png", "Escudo Real Santander SA.png",
+    "Escudo Tigres FC.png", "Escudo Unión Magdalena.png", "LOGO IVC (1).png", "Real Cundinamarca.png"
+  ],
   // Si un equipo no coincide solo, se fuerza aquí: "nombre como sale en el calendario": "nombre del archivo"
   TEAM_LOGO_ALIASES: {
     "Independiente Valle del Cauca": "LOGO IVC (1)",
@@ -769,46 +782,36 @@ function setLogoStatus(text, ok) {
   const el = document.getElementById("logoStatus");
   if (el) { el.textContent = text; el.style.color = ok ? "" : "#fbbf24"; }
 }
+function logoEntry(name) {
+  const base = name.replace(/\.[a-z0-9]+$/i, "");
+  const path = CONFIG.LOGOS_DIR + "/" + encodeURIComponent(name.normalize ? name.normalize("NFC") : name);
+  return {
+    base: normalizeName(base), words: logoWords(base),
+    url: path,                                                                // servido por GitHub Pages
+    thumb: `https://raw.githubusercontent.com/${CONFIG.GITHUB_REPO}/HEAD/${path}` // respaldo directo del repositorio
+  };
+}
 async function fetchLogos() {
-  if (!CONFIG.LOGOS_FOLDER_ID) { setLogoStatus("Escudos: falta el ID de la carpeta", false); return; }
   if (LOGOS.loading) return;
   LOGOS.loading = true;
+  let names = null, source = "GitHub";
   try {
-    let list = [], pageToken = "";
-    do {
-      const q = encodeURIComponent(`'${CONFIG.LOGOS_FOLDER_ID}' in parents and trashed = false`);
-      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&key=${encodeURIComponent(CONFIG.DRIVE_API_KEY)}&fields=nextPageToken,files(id,name,mimeType)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true` + (pageToken ? `&pageToken=${pageToken}` : "");
-      const res = await fetch(url);
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const msg = data && data.error && data.error.message ? data.error.message : "HTTP " + res.status;
-        throw new Error(msg);
-      }
-      list = list.concat((data.files || [])
-        .filter((f) => /^image\//.test(f.mimeType || "") || /\.(png|jpe?g|webp|gif|svg)$/i.test(f.name))
-        .map((f) => {
-          const base = f.name.replace(/\.[a-z0-9]+$/i, "");
-          return {
-            base: normalizeName(base), words: logoWords(base),
-            url: `https://lh3.googleusercontent.com/d/${f.id}`,
-            thumb: `https://drive.google.com/thumbnail?id=${f.id}&sz=w200`
-          };
-        }));
-      pageToken = data.nextPageToken || "";
-    } while (pageToken);
-    LOGOS.list = list;
-    LOGOS.loaded = true;
-    LOGO_CACHE.clear();
-    lastTableHTML = "";
-    renderTable();
-    if (list.length) setLogoStatus(`Escudos: ${list.length}`, true);
-    else setLogoStatus("Escudos: la carpeta no devuelve imágenes (¿está compartida con 'Cualquier persona con el enlace'?)", false);
+    // La API pública de GitHub lista los archivos de la carpeta (sin key; se consulta pocas veces al día)
+    const data = await getJSON(`https://api.github.com/repos/${CONFIG.GITHUB_REPO}/contents/${CONFIG.LOGOS_DIR}`);
+    if (Array.isArray(data)) {
+      names = data.filter((f) => f.type === "file" && /\.(png|jpe?g|webp|gif|svg)$/i.test(f.name)).map((f) => f.name);
+    }
   } catch (err) {
-    console.warn("Error carpeta de escudos", err);
-    setLogoStatus("Escudos: error — " + err.message, false);
-  } finally {
-    LOGOS.loading = false;
+    console.warn("No se pudo listar la carpeta de escudos en GitHub; se usa la lista de respaldo", err);
   }
+  if (!names || !names.length) { names = CONFIG.LOGO_FILES || []; source = "lista interna"; }
+  LOGOS.list = names.map(logoEntry);
+  LOGOS.loaded = true;
+  LOGO_CACHE.clear();
+  lastTableHTML = "";
+  renderTable();
+  setLogoStatus(LOGOS.list.length ? `Escudos: ${LOGOS.list.length}` : "Escudos: la carpeta está vacía", !!LOGOS.list.length);
+  LOGOS.loading = false;
 }
 const LOGO_CACHE = new Map();
 function findLogo(teamName) {
@@ -979,13 +982,29 @@ function renderClock() {
   document.getElementById("clockDate").textContent = `${WD_NAMES[weekdayIndexBogota(now)]}, ${Number(key.slice(8, 10))} de ${MESES_LARGO[Number(key.slice(5, 7)) - 1]}`;
 }
 const DRIVE = { images: [], loading: false };
+/* Consulta una carpeta de Drive probando las API keys disponibles:
+   primero DRIVE_API_KEY y, si Google la rechaza, la key del Calendario (API_KEY). */
+let DRIVE_KEY_OK = "";
+async function driveQuery(params) {
+  const keys = [DRIVE_KEY_OK, CONFIG.DRIVE_API_KEY, CONFIG.API_KEY].filter((k, i, arr) => k && arr.indexOf(k) === i);
+  let lastErr = null;
+  for (const key of keys) {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?${params}&key=${encodeURIComponent(key)}`);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) { DRIVE_KEY_OK = key; return data; }
+    const msg = data && data.error && data.error.message ? data.error.message : "HTTP " + res.status;
+    lastErr = new Error(msg);
+    // Si la carpeta no existe o no hay permiso, cambiar de key no ayuda
+    if (res.status === 404) break;
+  }
+  throw lastErr || new Error("Sin API key de Drive");
+}
 async function fetchDriveImages() {
   if (DRIVE.loading) return;
   DRIVE.loading = true;
   try {
     const q = encodeURIComponent(`'${CONFIG.DRIVE_FOLDER_ID}' in parents and mimeType contains 'image/' and trashed = false`);
-    const url = `https://www.googleapis.com/drive/v3/files?q=${q}&key=${encodeURIComponent(CONFIG.DRIVE_API_KEY)}&fields=files(id,name)&orderBy=name&pageSize=100&supportsAllDrives=true&includeItemsFromAllDrives=true`;
-    const data = await getJSON(url);
+    const data = await driveQuery(`q=${q}&fields=files(id,name)&orderBy=name&pageSize=100&supportsAllDrives=true&includeItemsFromAllDrives=true`);
     DRIVE.images = (data.files || []).map((f) => ({ name: f.name, url: `https://lh3.googleusercontent.com/d/${f.id}` }));
   } catch (err) {
     console.warn("Error carpeta de Drive", err);
