@@ -190,6 +190,31 @@
   .score b{ font-family:'DM Mono', monospace; font-size:1.75rem; font-weight:500; }
   .score small{ font-size:0.8125rem; font-weight:700; color:var(--live); }
 
+  /* ---------- Equipos con escudo ---------- */
+  .teams{ display:flex; align-items:center; gap:0.75rem; height:3.875rem; }
+  .teamList{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:0.25rem; }
+  .team{ display:flex; align-items:center; gap:0.625rem; height:1.8125rem; min-width:0; }
+  .crest{
+    position:relative; width:1.8125rem; height:1.8125rem; flex:0 0 1.8125rem; border-radius:50%;
+    background:#e8edf4; color:#475569; font-size:0.625rem; font-weight:800; letter-spacing:.02em;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  .crest img{ position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; }
+  .crest.has-img{ background:transparent; border-radius:0; }
+  .crest.has-img .ini{ visibility:hidden; }
+  .tname{ font-size:1.125rem; font-weight:800; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .side{ flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:0.25rem; }
+  .goal{ font-family:'DM Mono', monospace; font-size:1.625rem; font-weight:500; height:1.8125rem; line-height:1.8125rem; min-width:1.375rem; text-align:right; }
+  .match.vivo .goal{ color:var(--live); }
+  .match.finalizado .tname{ color:#334155; }
+  .match.finalizado .goal.win{ font-weight:500; color:var(--ink); }
+  .match.finalizado .goal.lose{ color:#94a3b8; }
+  .venueRow{ display:flex; align-items:center; justify-content:space-between; gap:0.625rem; height:1rem; }
+  .venueRow .venue{ padding-bottom:0; }
+  .side .kickoff{ font-size:1.375rem; display:flex; align-items:baseline; gap:0.25rem; }
+  .side .kickoff small{ font-family:'DM Sans', sans-serif; font-size:0.75rem; font-weight:800; letter-spacing:.04em; }
+  .minute{ font-size:0.8125rem; font-weight:800; color:var(--live); white-space:nowrap; }
+
   .match.vivo{ box-shadow:0 0 0 0.1875rem var(--live), 0 0.375rem 1.375rem rgba(225,29,72,.45); animation:liveGlow 2s ease-in-out infinite; }
   .match.vivo .score b{ color:var(--live); }
   .match.finalizado{ background:#f4f6f9; }
@@ -310,7 +335,19 @@ const CONFIG = {
   DRIVE_FOLDER_ID: "1rJfhagt9jHHnwm_8v2kDxZeWTqg48IcT",
   DRIVE_API_KEY: "AIzaSyBrdcqFd_zz4TTOXYta4cvwVMc0PDuaF9U",
   DRIVE_REFRESH_MS: 5 * 60 * 1e3,
-  DRIVE_IMAGE_SECONDS: 8
+  DRIVE_IMAGE_SECONDS: 8,
+
+  // --- Escudos de los equipos (carpeta de Drive compartida "Cualquier persona con el enlace") ---
+  // Los archivos se llaman como el equipo, ej. "Escudo Atlético Nacional.png". El board quita
+  // "Escudo", "Logo", "FC", "SA", tildes y mayúsculas para comparar con el nombre del calendario.
+  LOGOS_FOLDER_ID: "1YMMw31IOgpmZb1S9G4Uxp16AU6CQfLYl", // carpeta de escudos compartida
+  LOGOS_REFRESH_MS: 6 * 60 * 60 * 1e3,
+  // Si un equipo no coincide solo, se fuerza aquí: "nombre como sale en el calendario": "nombre del archivo"
+  TEAM_LOGO_ALIASES: {
+    "Independiente Valle del Cauca": "LOGO IVC (1)",
+    "IVC": "LOGO IVC (1)",
+    "DIM": "Escudo Independiente Medellín"
+  }
 };
 const CALENDARS = [
   { id: "c_74d60f90f8e2a5d566429af24fd4c5e4c6a083e5a62027cec34a5c362b8dd49a@group.calendar.google.com", label: "Liga BetPlay Dimayor", color: "#f3cc23", logo: "https://lh3.googleusercontent.com/d/1tVCRbR0BNTcSqzoDd0jgs_9dvrvYK2pX", espnSlug: "col.1", sportsDbId: 4497, highlightlyId: 204173, kickoffLeagueId: 239, allSportsLeagueId: 120 },
@@ -715,35 +752,135 @@ function flipPages() {
     }
   });
 }
+/* =========================================================
+   ESCUDOS DE LOS EQUIPOS (desde la carpeta de Drive)
+   ========================================================= */
+const LOGOS = { list: [], loaded: false, loading: false };
+// Palabras que no sirven para identificar al equipo (se quitan del nombre del archivo y del calendario)
+const LOGO_STOP = new Set(["escudo", "logo", "fc", "f", "c", "sa", "sc", "daf", "de", "del", "la", "el", "los", "las", "y", "png", "jpg", "jpeg", "webp", "1", "2", "femenino", "femenina", "fem"]);
+// Palabras comunes a varios equipos: cuentan, pero no bastan solas para elegir un escudo
+const LOGO_GENERIC = new Set(["deportivo", "deportes", "atletico", "independiente", "real", "union", "club", "internacional", "boca", "juniors"]);
+
+function logoWords(name) {
+  return normalizeName(name).split(" ").filter((w) => w && !LOGO_STOP.has(w));
+}
+async function fetchLogos() {
+  if (!CONFIG.LOGOS_FOLDER_ID || LOGOS.loading) return;
+  LOGOS.loading = true;
+  try {
+    let list = [], pageToken = "";
+    do {
+      const q = encodeURIComponent(`'${CONFIG.LOGOS_FOLDER_ID}' in parents and mimeType contains 'image/' and trashed = false`);
+      const url = `https://www.googleapis.com/drive/v3/files?q=${q}&key=${encodeURIComponent(CONFIG.DRIVE_API_KEY)}&fields=nextPageToken,files(id,name)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true` + (pageToken ? `&pageToken=${pageToken}` : "");
+      const data = await getJSON(url);
+      list = list.concat((data.files || []).map((f) => {
+        const base = f.name.replace(/\.[a-z0-9]+$/i, "");
+        return { base: normalizeName(base), words: logoWords(base), url: `https://lh3.googleusercontent.com/d/${f.id}` };
+      }));
+      pageToken = data.nextPageToken || "";
+    } while (pageToken);
+    LOGOS.list = list;
+    LOGOS.loaded = true;
+    LOGO_CACHE.clear();
+    lastTableHTML = "";
+    renderTable();
+  } catch (err) {
+    console.warn("Error carpeta de escudos", err);
+  } finally {
+    LOGOS.loading = false;
+  }
+}
+const LOGO_CACHE = new Map();
+function findLogo(teamName) {
+  if (!LOGOS.list.length || !teamName) return null;
+  if (LOGO_CACHE.has(teamName)) return LOGO_CACHE.get(teamName);
+  let result = null;
+  // 1) alias forzado en la configuración
+  const aliases = CONFIG.TEAM_LOGO_ALIASES || {};
+  const aliasKey = Object.keys(aliases).find((k) => normalizeName(k) === normalizeName(teamName));
+  if (aliasKey) {
+    const target = normalizeName(aliases[aliasKey]);
+    result = LOGOS.list.find((l) => l.base === target) || null;
+  }
+  // 2) comparación por palabras: gana el escudo con más palabras en común;
+  //    en empate, el que tenga menos palabras sobrantes
+  if (!result) {
+    const words = logoWords(teamName);
+    const hasSpecific = words.some((w) => !LOGO_GENERIC.has(w));
+    let best = null, bestScore = 0, bestRatio = 0;
+    LOGOS.list.forEach((l) => {
+      const common = l.words.filter((w) => words.indexOf(w) !== -1);
+      if (!common.length) return;
+      if (hasSpecific && !common.some((w) => !LOGO_GENERIC.has(w))) return;
+      const ratio = common.length / l.words.length;
+      if (common.length > bestScore || (common.length === bestScore && ratio > bestRatio)) {
+        best = l; bestScore = common.length; bestRatio = ratio;
+      }
+    });
+    result = best;
+  }
+  LOGO_CACHE.set(teamName, result ? result.url : null);
+  return result ? result.url : null;
+}
+function splitTeams(title) {
+  const parts = String(title || "").split(/\s+(?:vs\.?|v\.?|x|-|–|—)\s+/i);
+  if (parts.length !== 2) return null;
+  const clean = (t) => t.replace(/\s*\(.*?\)\s*$/, "").trim();
+  return [clean(parts[0]), clean(parts[1])];
+}
+function initials(name) {
+  const w = logoWords(name).filter((x) => !LOGO_GENERIC.has(x));
+  const src = w.length ? w : logoWords(name);
+  return src.slice(0, 2).map((x) => x.charAt(0).toUpperCase()).join("") || "?";
+}
+function crestHTML(name) {
+  const url = findLogo(name);
+  const img = url ? `<img src="${url}" alt="" onerror="this.parentNode.classList.remove('has-img');this.parentNode.removeChild(this)">` : "";
+  return `<span class="crest ${url ? "has-img" : ""}"><span class="ini">${esc(initials(name))}</span>${img}</span>`;
+}
+
 function cardHTML(ev) {
   const st = matchStatus(ev);
   const info = getMatchInfo(ev);
   let state = st.state;
   if (info) state = info.completed ? "finalizado" : "en_vivo";
-  let badge = "", right = "", progress = "";
+  const teams = splitTeams(ev.title);
+  let badge = "", side = "", minute = "", progress = "";
+  const hasScore = !!info;
+  const gh = hasScore ? Number(info.golesHome) : null, ga = hasScore ? Number(info.golesAway) : null;
   if (state === "en_vivo") {
     badge = `<span class="badge live"><span class="dot"></span>En vivo</span>`;
-    if (info) {
-      right = `<div class="score"><b>${esc(info.golesHome)} - ${esc(info.golesAway)}</b>${info.clockText ? `<small>${esc(info.clockText)}</small>` : ""}</div>`;
+    if (hasScore) {
+      minute = info.clockText ? `<span class="minute">${esc(info.clockText)}</span>` : "";
     } else {
-      right = `<span class="kickoff">${fmtTime(ev.startISO)}</span>`;
       progress = `<div class="progress"><i style="width:${st.pct.toFixed(0)}%"></i></div>`;
     }
   } else if (state === "finalizado") {
     badge = `<span class="badge done">Final</span>`;
-    right = info ? `<div class="score"><b>${esc(info.golesHome)} - ${esc(info.golesAway)}</b></div>` : `<span class="kickoff" style="color:#64748b">${fmtTime(ev.startISO)}</span>`;
-  } else {
-    right = `<span class="kickoff">${ev.allDay ? "Por definir" : fmtTime(ev.startISO)}</span>`;
   }
+  if (hasScore) {
+    const cls = (a, b) => state === "finalizado" ? (a > b ? "win" : a < b ? "lose" : "") : "";
+    side = `<div class="side"><span class="goal ${cls(gh, ga)}">${esc(info.golesHome)}</span><span class="goal ${cls(ga, gh)}">${esc(info.golesAway)}</span></div>`;
+  } else {
+    const color = state === "finalizado" ? ' style="color:#64748b"' : "";
+    const t = ev.allDay ? "" : fmtTime(ev.startISO).split(" ");
+    side = `<div class="side"><span class="kickoff"${color}>${ev.allDay ? "Por definir" : `${t[0]}<small>${t[1]}</small>`}</span></div>`;
+  }
+  const teamBlock = teams
+    ? `<div class="teams"><div class="teamList">
+        <div class="team">${crestHTML(teams[0])}<span class="tname">${esc(teams[0])}</span></div>
+        <div class="team">${crestHTML(teams[1])}<span class="tname">${esc(teams[1])}</span></div>
+      </div>${side}</div>`
+    : `<div class="teams"><div class="teamList"><div class="title">${esc(ev.title)}</div></div>${side}</div>`;
   return `<div class="match ${state === "en_vivo" ? "vivo" : ""} ${state === "finalizado" ? "finalizado" : ""}" style="--comp-color:${ev.cal.color}">
     <div class="top">
       <div class="comp"><img src="${ev.cal.logo}" alt="" onerror="this.style.display='none'"><span>${esc(ev.cal.label)}</span></div>
       ${badge}
     </div>
-    <div class="title">${esc(ev.title)}</div>
-    <div class="bottom">
+    ${teamBlock}
+    <div class="venueRow">
       <div class="venue">${ev.location ? "📍 " + esc(ev.location) : ""}</div>
-      ${right}
+      ${minute}
     </div>
     ${progress}
   </div>`;
@@ -897,6 +1034,8 @@ document.documentElement.style.setProperty("--page-seconds", CONFIG.PAGE_SECONDS
 renderClock();
 loadEvents();
 fetchDriveImages();
+fetchLogos();
+setInterval(fetchLogos, CONFIG.LOGOS_REFRESH_MS);
 scheduleView();
 setInterval(flipPages, CONFIG.PAGE_SECONDS * 1e3);
 setInterval(tick, CONFIG.TICK_MS);
