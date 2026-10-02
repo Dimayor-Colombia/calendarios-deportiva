@@ -200,6 +200,8 @@
   .crest img{ position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; }
   .crest.has-img{ background:transparent; border-radius:0; }
   .crest.has-img .ini{ visibility:hidden; }
+  .crest.flag{ border-radius:50%; box-shadow:0 0 0 1px rgba(15,23,42,.15); }
+  .crest.flag img{ object-fit:cover; }
   .tname{ font-size:18px; font-weight:800; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .side{ flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:4px; }
   .goal{ font-family:'DM Mono', monospace; font-size:26px; font-weight:500; height:29px; line-height:29px; min-width:22px; text-align:right; }
@@ -353,6 +355,18 @@ const CONFIG = {
     "Escudo Orsomarso SC.png", "Escudo Patriotas FC.png", "Escudo Real Cartagena.png", "Escudo Real Santander SA.png",
     "Escudo Tigres FC.png", "Escudo Unión Magdalena.png", "LOGO IVC (1).png", "Real Cundinamarca.png"
   ],
+  // --- Banderas para selecciones (repositorio público flag-icons, servido por jsDelivr) ---
+  FLAGS_BASE: "https://cdn.jsdelivr.net/npm/flag-icons@7.5.0/flags/1x1/",
+  // Nombres extra de países que no salen solos (nombre como en el calendario: código de la bandera)
+  COUNTRY_ALIASES: {
+    "Inglaterra": "gb-eng", "Escocia": "gb-sct", "Gales": "gb-wls", "Irlanda del Norte": "gb-nir",
+    "Estados Unidos": "us", "EE. UU.": "us", "EEUU": "us", "USA": "us",
+    "Holanda": "nl", "Países Bajos": "nl", "Costa de Marfil": "ci", "República Checa": "cz", "Chequia": "cz",
+    "Catar": "qa", "Qatar": "qa", "Arabia Saudita": "sa", "Arabia Saudí": "sa", "Corea del Sur": "kr", "Corea": "kr",
+    "Corea del Norte": "kp", "RD Congo": "cd", "República Democrática del Congo": "cd", "Irán": "ir",
+    "Bosnia": "ba", "Bosnia y Herzegovina": "ba", "Turquía": "tr", "Rusia": "ru", "Emiratos Árabes Unidos": "ae",
+    "Cabo Verde": "cv", "Curazao": "cw", "Surinam": "sr", "Trinidad y Tobago": "tt", "Nueva Zelanda": "nz"
+  },
   // Si un equipo no coincide solo, se fuerza aquí: "nombre como sale en el calendario": "nombre del archivo"
   TEAM_LOGO_ALIASES: {
     "Independiente Valle del Cauca": "LOGO IVC (1)",
@@ -835,9 +849,43 @@ function sameWord(a, b) {
   }
   return d[a.length][b.length] <= 1;
 }
+/* =========================================================
+   BANDERAS DE SELECCIONES (flag-icons). El nombre del país se reconoce solo en español
+   usando la lista de países del propio navegador, más los alias de la configuración.
+   ========================================================= */
+const COUNTRY_INDEX = (() => {
+  const map = new Map();
+  try {
+    const dn = new Intl.DisplayNames(["es"], { type: "region" });
+    const A = 65;
+    for (let i = 0; i < 26; i++) {
+      for (let j = 0; j < 26; j++) {
+        const code = String.fromCharCode(A + i) + String.fromCharCode(A + j);
+        let name;
+        try { name = dn.of(code); } catch (e) { continue; }
+        // si dos códigos dan el mismo nombre (ej. FR y FX = Francia) se queda el primero, que es el oficial
+        if (name && name !== code && !map.has(normalizeName(name))) map.set(normalizeName(name), code.toLowerCase());
+      }
+    }
+  } catch (e) {
+    console.warn("El navegador no tiene la lista de países; solo se usan los alias de la configuración", e);
+  }
+  const aliases = CONFIG.COUNTRY_ALIASES || {};
+  Object.keys(aliases).forEach((k) => map.set(normalizeName(k), aliases[k]));
+  return map;
+})();
+// Palabras que acompañan a una selección y se ignoran: "Selección Colombia Sub-20 Femenina" -> "colombia"
+const COUNTRY_STOP = new Set(["seleccion", "sub", "u", "17", "20", "23", "femenina", "femenino", "masculina", "masculino", "fem", "sf", "nacional"]);
+function findFlag(teamName) {
+  const words = normalizeName(teamName).split(" ").filter((w) => w && !COUNTRY_STOP.has(w));
+  const key = words.join(" ");
+  const code = COUNTRY_INDEX.get(key);
+  if (!code) return null;
+  return { url: CONFIG.FLAGS_BASE + code + ".svg", alts: [], flag: true };
+}
 const LOGO_CACHE = new Map();
 function findLogo(teamName) {
-  if (!LOGOS.list.length || !teamName) return null;
+  if (!teamName) return null;
   if (LOGO_CACHE.has(teamName)) return LOGO_CACHE.get(teamName);
   let result = null;
   // 1) alias forzado en la configuración
@@ -849,6 +897,8 @@ function findLogo(teamName) {
   }
   // 2) comparación por palabras: gana el escudo con más palabras en común;
   //    en empate, el que tenga menos palabras sobrantes
+  // 2) selección nacional -> bandera (solo si el nombre es exactamente un país)
+  if (!result) result = findFlag(teamName);
   if (!result) {
     const words = logoWords(teamName);
     const hasSpecific = words.some((w) => !LOGO_GENERIC.has(w));
@@ -898,7 +948,7 @@ function crestFail(img) {
 function crestHTML(name) {
   const logo = findLogo(name);
   const img = logo ? `<img src="${logo.url}" data-alts="${logo.alts.join("|")}" alt="" onerror="crestFail(this)">` : "";
-  return `<span class="crest ${logo ? "has-img" : ""}"><span class="ini">${esc(initials(name))}</span>${img}</span>`;
+  return `<span class="crest ${logo ? "has-img" : ""} ${logo && logo.flag ? "flag" : ""}"><span class="ini">${esc(initials(name))}</span>${img}</span>`;
 }
 
 function cardHTML(ev) {
