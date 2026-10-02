@@ -783,11 +783,18 @@ function setLogoStatus(text, ok) {
 }
 function logoEntry(name) {
   const base = name.replace(/\.[a-z0-9]+$/i, "");
-  const path = CONFIG.LOGOS_DIR + "/" + encodeURIComponent(name.normalize ? name.normalize("NFC") : name);
+  // Las tildes pueden venir guardadas de dos formas ("ó" junta, o "o" + tilde aparte, típico de archivos
+  // subidos desde Mac). Se usa el nombre tal cual viene de GitHub y, si falla, se prueba la otra forma.
+  const forms = [name];
+  if (name.normalize) {
+    [name.normalize("NFC"), name.normalize("NFD")].forEach((f) => { if (forms.indexOf(f) === -1) forms.push(f); });
+  }
+  const paths = forms.map((f) => CONFIG.LOGOS_DIR + "/" + encodeURIComponent(f));
+  const alts = paths.slice(1).concat(paths.map((pa) => `https://raw.githubusercontent.com/${CONFIG.GITHUB_REPO}/HEAD/${pa}`));
   return {
     base: normalizeName(base), words: logoWords(base),
-    url: path,                                                                // servido por GitHub Pages
-    thumb: `https://raw.githubusercontent.com/${CONFIG.GITHUB_REPO}/HEAD/${path}` // respaldo directo del repositorio
+    url: paths[0],          // servido por GitHub Pages
+    alts: alts              // respaldos: la otra forma de la tilde y el archivo directo del repositorio
   };
 }
 async function fetchLogos() {
@@ -879,14 +886,18 @@ function initials(name) {
 }
 // Si la imagen falla, se prueba la miniatura de Drive; si también falla, quedan las iniciales
 function crestFail(img) {
-  const thumb = img.getAttribute("data-thumb");
-  if (thumb && img.src !== thumb) { img.src = thumb; return; }
+  const alts = (img.getAttribute("data-alts") || "").split("|").filter(Boolean);
+  if (alts.length) {
+    img.setAttribute("data-alts", alts.slice(1).join("|"));
+    img.src = alts[0];
+    return;
+  }
   img.parentNode.classList.remove("has-img");
   img.parentNode.removeChild(img);
 }
 function crestHTML(name) {
   const logo = findLogo(name);
-  const img = logo ? `<img src="${logo.url}" data-thumb="${logo.thumb}" alt="" onerror="crestFail(this)">` : "";
+  const img = logo ? `<img src="${logo.url}" data-alts="${logo.alts.join("|")}" alt="" onerror="crestFail(this)">` : "";
   return `<span class="crest ${logo ? "has-img" : ""}"><span class="ini">${esc(initials(name))}</span>${img}</span>`;
 }
 
