@@ -163,7 +163,7 @@
     display:flex; align-items:center; gap:7px; min-width:0;
     font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);
   }
-  .comp img{ width:20px; height:20px; object-fit:contain; flex:0 0 20px; }
+  .comp img{ width:20px; height:20px; object-fit:contain; flex:0 0 20px; padding:2px; border-radius:50%; background:#fff; box-shadow:0 0 0 1px rgba(15,23,42,.14), 0 1px 2px rgba(15,23,42,.15); }
   .comp span{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .badge{
     flex:0 0 auto; display:inline-flex; align-items:center; gap:6px;
@@ -192,16 +192,17 @@
   .teams{ display:flex; align-items:center; gap:12px; height:62px; }
   .teamList{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:4px; }
   .team{ display:flex; align-items:center; gap:10px; height:29px; min-width:0; }
+  /* Todos los escudos, banderas e iniciales van en el mismo círculo con borde suave */
   .crest{
     position:relative; width:29px; height:29px; flex:0 0 29px; border-radius:50%;
     background:#e8edf4; color:#475569; font-size:10px; font-weight:800; letter-spacing:.02em;
     display:flex; align-items:center; justify-content:center; overflow:hidden;
+    box-shadow:0 0 0 1px rgba(15,23,42,.14), 0 1px 3px rgba(15,23,42,.18);
   }
-  .crest img{ position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; }
-  .crest.has-img{ background:transparent; border-radius:0; }
+  .crest img{ position:absolute; top:3px; left:3px; width:calc(100% - 6px); height:calc(100% - 6px); object-fit:contain; }
+  .crest.has-img{ background:#fff; }
   .crest.has-img .ini{ visibility:hidden; }
-  .crest.flag{ border-radius:50%; box-shadow:0 0 0 1px rgba(15,23,42,.15); }
-  .crest.flag img{ object-fit:cover; }
+  .crest.flag img{ top:0; left:0; width:100%; height:100%; object-fit:cover; }
   .tname{ font-size:18px; font-weight:800; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .side{ flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:4px; }
   .goal{ font-family:'DM Mono', monospace; font-size:26px; font-weight:500; height:29px; line-height:29px; min-width:22px; text-align:right; }
