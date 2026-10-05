@@ -23,7 +23,7 @@
     --navy-700:#0a2a5c;
     --blue:#0063cc;
     --blue-dark:#004c99;
-    --sky:#7cc4ff;
+    --sky:#d1d5db;   /* indicador de páginas en gris claro */
     --gold:#f3cc23;
     --white:#ffffff;
     --ink:#0f172a;
@@ -39,10 +39,10 @@
   html,body{
     width:100%; height:100%; margin:0; padding:0; overflow:hidden;
     font-family:'DM Sans', sans-serif; color:var(--white);
+    /* Fondo negro (casi negro, más suave en pantalla que el negro puro) con un leve brillo gris */
     background:
-      radial-gradient(900px 500px at 8% -10%, rgba(0,99,204,.55), transparent 65%),
-      radial-gradient(800px 500px at 100% 110%, rgba(0,99,204,.35), transparent 65%),
-      linear-gradient(180deg, var(--navy-800), var(--navy-900));
+      radial-gradient(900px 500px at 8% -10%, rgba(255,255,255,.06), transparent 65%),
+      linear-gradient(180deg, #0d0f14, #050608);
   }
   /* El diseño se arma en 1920x1080 y se escala completo para llenar cualquier pantalla
      (720p, 1080p, 4K, portátil, TV, etc.) sin deformarse ni cortar nada. */
@@ -90,14 +90,14 @@
 
   .day{
     height:892px; display:flex; flex-direction:column;
-    background:rgba(255,255,255,.045);
+    background:rgba(255,255,255,.035);
     border:1px solid rgba(255,255,255,.09);
     border-radius:20px; overflow:hidden;
   }
   .day.today{
-    background:rgba(0,99,204,.16);
-    border:2px solid rgba(124,196,255,.55);
-    box-shadow:0 0 40px rgba(0,99,204,.35);
+    background:rgba(255,255,255,.07);
+    border:2px solid rgba(255,255,255,.35);
+    box-shadow:0 0 36px rgba(255,255,255,.08);
   }
 
   .dayHead{
@@ -105,13 +105,13 @@
     display:flex; align-items:center; gap:16px; padding:0 20px;
     border-bottom:1px solid rgba(255,255,255,.08);
   }
-  .day.today .dayHead{ background:linear-gradient(135deg, var(--blue), var(--blue-dark)); border-bottom-color:transparent; }
+  .day.today .dayHead{ background:linear-gradient(135deg, #4b5260, #2c313a); border-bottom-color:transparent; }
   .dayNum{
     width:56px; height:56px; flex:0 0 56px; border-radius:14px;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
     background:rgba(255,255,255,.1); line-height:1;
   }
-  .day.today .dayNum{ background:#fff; color:var(--blue-dark); }
+  .day.today .dayNum{ background:#fff; color:#1f2329; }
   .dayNum b{ font-family:'DM Mono', monospace; font-size:26px; font-weight:500; }
   .dayNum small{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; margin-top:3px; opacity:.75; }
   .dayInfo{ flex:1; min-width:0; }
@@ -151,12 +151,9 @@
     height:140px; flex:0 0 140px; position:relative;
     display:flex; flex-direction:column; justify-content:space-between;
     background:#fff; color:var(--ink);
-    border-radius:14px; padding:13px 16px 12px 22px; overflow:hidden;
+    border-radius:14px; padding:10px 14px 9px 14px; overflow:hidden;
+    border:4px solid var(--comp-color);   /* color de la competencia en todo el borde de la tarjeta */
     box-shadow:0 6px 18px rgba(0,0,0,.25);
-  }
-  .match::before{
-    content:''; position:absolute; left:0; top:0; bottom:0; width:7px;
-    background:var(--comp-color);
   }
   .match .top{ display:flex; align-items:center; justify-content:space-between; gap:10px; height:22px; }
   .comp{
@@ -217,11 +214,11 @@
   .round{ font-size:12px; font-weight:700; color:var(--muted); white-space:nowrap; max-width:45%; overflow:hidden; text-overflow:ellipsis; flex:0 0 auto; }
   .minute{ font-size:13px; font-weight:800; color:var(--live); white-space:nowrap; }
 
-  .match.vivo{ box-shadow:0 0 0 3px var(--live), 0 6px 22px rgba(225,29,72,.45); animation:liveGlow 2s ease-in-out infinite; }
+  .match.vivo{ box-shadow:0 0 0 2px #fff, 0 0 0 5px var(--live), 0 6px 22px rgba(225,29,72,.45); animation:liveGlow 2s ease-in-out infinite; }
   .match.vivo .score b{ color:var(--live); }
   .match.finalizado{ background:#f4f6f9; }
   .match.finalizado .title{ color:#334155; }
-  .match .progress{ position:absolute; left:7px; right:0; bottom:0; height:4px; background:var(--live-soft); }
+  .match .progress{ position:absolute; left:0; right:0; bottom:0; height:4px; background:var(--live-soft); }
   .match .progress i{ display:block; height:100%; background:var(--live); }
 
   /* ---------- Pie del día: indicador de páginas ---------- */
@@ -263,8 +260,8 @@
   @keyframes fill{ from{width:0;} to{width:100%;} }
   @keyframes pillPulse{ 0%{box-shadow:0 0 0 0 rgba(225,29,72,.55);} 70%{box-shadow:0 0 0 14px rgba(225,29,72,0);} 100%{box-shadow:0 0 0 0 rgba(225,29,72,0);} }
   @keyframes liveGlow{
-    0%,100%{ box-shadow:0 0 0 3px var(--live), 0 6px 22px rgba(225,29,72,.45); }
-    50%{ box-shadow:0 0 0 3px rgba(225,29,72,.5), 0 6px 30px rgba(225,29,72,.25); }
+    0%,100%{ box-shadow:0 0 0 2px #fff, 0 0 0 5px var(--live), 0 6px 22px rgba(225,29,72,.45); }
+    50%{ box-shadow:0 0 0 2px #fff, 0 0 0 5px rgba(225,29,72,.5), 0 6px 30px rgba(225,29,72,.25); }
   }
 </style>
 </head>
