@@ -216,7 +216,20 @@
 
   .match.vivo{ box-shadow:0 0 0 2px #fff, 0 0 0 5px var(--live), 0 6px 22px rgba(225,29,72,.45); animation:liveGlow 2s ease-in-out infinite; }
   .match.vivo .score b{ color:var(--live); }
-  .match.finalizado{ background:#f4f6f9; }
+  .match{ background:var(--card-bg, #fff); }
+  .match.finalizado{ background:var(--card-bg, #f4f6f9); }
+  /* Tarjeta sólida con fondo oscuro: todo el texto en blanco */
+  .match.on-dark{ color:#fff; }
+  .match.on-dark .tname, .match.on-dark .title, .match.on-dark .kickoff,
+  .match.on-dark .goal, .match.on-dark.finalizado .tname, .match.on-dark .goal.win{ color:#fff; }
+  .match.on-dark .comp, .match.on-dark .venue, .match.on-dark .round{ color:rgba(255,255,255,.82); }
+  .match.on-dark .goal.lose{ color:rgba(255,255,255,.5); }
+  .match.on-dark .minute{ color:#fff; }
+  /* Tarjeta sólida con fondo claro: texto oscuro */
+  .match.on-light .kickoff{ color:#0f172a; }
+  .match.on-light .comp, .match.on-light .venue, .match.on-light .round{ color:rgba(15,23,42,.72); }
+  .match.on-light.vivo .goal{ color:#b91c1c; }
+  .match.on-dark.vivo .goal{ color:#fff; }
   .match.finalizado .title{ color:#334155; }
   .match .progress{ position:absolute; left:0; right:0; bottom:0; height:4px; background:var(--live-soft); }
   .match .progress i{ display:block; height:100%; background:var(--live); }
@@ -365,6 +378,10 @@ const CONFIG = {
     "Bosnia": "ba", "Bosnia y Herzegovina": "ba", "Turquía": "tr", "Rusia": "ru", "Emiratos Árabes Unidos": "ae",
     "Cabo Verde": "cv", "Curazao": "cw", "Surinam": "sr", "Trinidad y Tobago": "tt", "Nueva Zelanda": "nz"
   },
+  // Estilo de las tarjetas: "tinte" = fondo claro del color de la competencia + borde fuerte,
+  //                         "solido" = toda la tarjeta del color de la competencia (texto blanco o negro automático)
+  CARD_STYLE: "tinte",
+  CARD_TINT: 0.22,                 // intensidad del tinte (0 = blanco, 1 = color puro)
   // Si un equipo no coincide solo, se fuerza aquí: "nombre como sale en el calendario": "nombre del archivo"
   TEAM_LOGO_ALIASES: {
     "Independiente Valle del Cauca": "LOGO IVC (1)",
@@ -949,6 +966,34 @@ function crestHTML(name) {
   return `<span class="crest ${logo ? "has-img" : ""} ${logo && logo.flag ? "flag" : ""}"><span class="ini">${esc(initials(name))}</span>${img}</span>`;
 }
 
+/* ---------- Colores de la tarjeta según la competencia ---------- */
+function hexToRgb(hex) {
+  const h = String(hex || "#888888").replace("#", "");
+  const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function mixColor(hex, withHex, amount) {
+  const a = hexToRgb(hex), b = hexToRgb(withHex);
+  const c = a.map((v, i) => Math.round(v * amount + b[i] * (1 - amount)));
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
+function luminance(hex) {
+  return hexToRgb(hex).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); })
+    .reduce((acc, v, i) => acc + v * [0.2126, 0.7152, 0.0722][i], 0);
+}
+// Devuelve el estilo y la clase de la tarjeta; el texto queda negro o blanco según cuál se lea mejor
+function cardColors(cal, finished) {
+  const color = cal.color;
+  if (CONFIG.CARD_STYLE === "solido") {
+    const L = luminance(color);
+    const darkText = (L + 0.05) / 0.06 >= 1.05 / (L + 0.05); // contraste con negro vs. con blanco
+    const bg = finished ? mixColor(color, darkText ? "#ffffff" : "#000000", 0.82) : color;
+    return { cls: "solid " + (darkText ? "on-light" : "on-dark"),
+      style: `--comp-color:${mixColor(color, "#000000", 0.78)};--card-bg:${bg}` };
+  }
+  const tint = finished ? CONFIG.CARD_TINT * 0.6 : CONFIG.CARD_TINT;
+  return { cls: "tint", style: `--comp-color:${color};--card-bg:${mixColor(color, "#ffffff", tint)}` };
+}
 function cardHTML(ev) {
   const st = matchStatus(ev);
   const info = getMatchInfo(ev);
@@ -984,7 +1029,8 @@ function cardHTML(ev) {
       </div>${side}</div>`
     : `<div class="teams"><div class="teamList"><div class="title">${esc(parsed.rest || ev.title)}</div></div>${side}</div>`;
   const right = minute || (parsed.round ? `<span class="round">${esc(parsed.round)}</span>` : "");
-  return `<div class="match ${state === "en_vivo" ? "vivo" : ""} ${state === "finalizado" ? "finalizado" : ""}" style="--comp-color:${ev.cal.color}">
+  const cc = cardColors(ev.cal, state === "finalizado");
+  return `<div class="match ${cc.cls} ${state === "en_vivo" ? "vivo" : ""} ${state === "finalizado" ? "finalizado" : ""}" style="${cc.style}">
     <div class="top">
       <div class="comp"><img src="${ev.cal.logo}" alt="" onerror="this.style.display='none'"><span>${esc(ev.cal.label)}</span></div>
       ${badge}
